@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Get Early Access - My Editor</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+<header>
+    <div class="logo">My Editor</div>
+    <nav>
+        <a href="index.html">Home</a>
+        <a href="features.html">Features</a>
+    </nav>
+</header>
+
+<section class="hero">
+    <h1>🔥 Get Early Access</h1>
+    <p>Limited spots available — secure yours now</p>
+
+    <!-- PAYPAL HOSTED BUTTON -->
+    <script 
+      src="https://www.paypal.com/sdk/js?client-id=BAAJ-l6rggKBeuFgigPL23PPY3K8fWGkOTiZhy0_r9NuNvWxUBgIGMD8wEN_yfrp8uCgE7X4rf9pvDh_8M&components=hosted-buttons&disable-funding=venmo&currency=USD">
+    </script>
+
+    <div id="paypal-container-KR33TFPVZUGVW"></div>
+
+    <script>
+paypal.HostedButtons({
+  hostedButtonId: "KR33TFPVZUGVW",
+  onApprove: async function(data, actions) {
+
+    const email = prompt("Enter your email for early access:");
+
+    await fetch("http://localhost:5000/save-payment", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        email: email,
+        payerName: "PayPal User"
+      })
+    });
+
+    window.location.href = "success.html";
+  }
+}).render("#paypal-container-KR33TFPVZUGVW");
+</script>
+
+</section>
+
+</body>
+</html>

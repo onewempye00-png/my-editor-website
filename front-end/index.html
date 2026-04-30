@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Editor</title>
+
+<link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+<header>
+    <div class="logo">My Editor</div>
+    <nav>
+        <a href="index.html">Home</a>
+        <a href="features.html">Features</a>
+        <a href="buy.html">Get Access</a>
+    </nav>
+</header>
+
+<p>🔥 Only <span id="spots"></span> early access spots left</p>
+
+<section class="hero">
+    <h1>Create Without Limits</h1>
+    <p>The Ultimate Video, Photo & Audio Editing App</p>
+
+    <div id="countdown"></div>
+
+    <form id="preRegForm">
+        <input type="email" placeholder="Enter your email" required>
+        <button type="submit">Join Waitlist</button>
+    </form>
+
+    <p id="message"></p>
+
+    <a href="buy.html">
+        <button style="margin-top:20px;">🔥 Get Early Access</button>
+    </a>
+</section>
+
+<script type="module">
+  // Import the functions you need from the SDKs you need
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
+  // TODO: Add SDKs for Firebase products that you want to use
+  // https://firebase.google.com/docs/web/setup#available-libraries
+
+  // Your web app's Firebase configuration
+  const firebaseConfig = {
+    apiKey: "AIzaSyCR8xtmlbVkijF3vYuaJH7t2iKBHoxQR6w",
+    authDomain: "my-editor-website.firebaseapp.com",
+    projectId: "my-editor-website",
+    storageBucket: "my-editor-website.firebasestorage.app",
+    messagingSenderId: "303844127103",
+    appId: "1:303844127103:web:52d58afb22e3a97ee42a4a"
+  };
+
+  // Initialize Firebase
+  const app = initializeApp(firebaseConfig);
+</script>
+
+<script type="module" src="script.js"></script>
+<script src="script.js"></script>
+</body>
+</html>

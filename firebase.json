@@ -1,0 +1,9 @@
+{
+  "hosting": {
+    "public": "front-end",
+    "ignore": [
+      "**/.*",
+      "**/node_modules/**"
+    ]
+  }
+}

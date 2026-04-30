@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Admin</title>
+<link rel="stylesheet" href="admin.css">
+</head>
+
+<body>
+
+<div id="login">
+<h2>Login</h2>
+<input id="username" placeholder="Username">
+<input id="password" type="password" placeholder="Password">
+<button onclick="login()">Login</button>
+</div>
+
+<div id="dashboard" style="display:none;">
+<h2>Dashboard</h2>
+<p id="stats"></p>
+
+<button onclick="loadUsers()">Load Users</button>
+<ul id="users"></ul>
+
+<h3>Send Email</h3>
+<input id="subject" placeholder="Subject">
+<input id="emailMessage" placeholder="Message">
+<button onclick="sendEmail()">Send</button>
+
+</div>
+
+<script src="admin.js"></script>
+</body>
+</html>
