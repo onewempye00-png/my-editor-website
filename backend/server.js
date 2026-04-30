@@ -10,7 +10,6 @@ const savePayments = (data) => fs.writeFileSync("./backend/payments.json", JSON.
 const MAX_BUYERS = 100;
 
 const app = express();
-const PORT = 5000;
 const SECRET = "supersecretkey";
 const bodyParser = require("body-parser");
 
