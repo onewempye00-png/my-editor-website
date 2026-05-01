@@ -87,7 +87,6 @@ const SECRET = "supersecretkey";
 const PORT = process.env.PORT || 5000;
 =======
 const bodyParser = require("body-parser");
->>>>>>> f0bf249 (fix duplicate PORT error)
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -99,46 +98,44 @@ const SECRET = "supersecretkey";
 app.use(cors());
 app.use(bodyParser.json());
 app.use(express.json());
-<<<<<<< HEAD
-
-// SERVE FRONTEND
-app.use(express.static(path.join(__dirname, "../front-end")));
-
-// 📂 Helpers (FIXED PATHS)
-const getUsers = () => JSON.parse(fs.readFileSync("../data.json"));
-const saveUsers = (data) => fs.writeFileSync("../data.json", JSON.stringify(data, null, 2));
-const getAdmins = () => JSON.parse(fs.readFileSync("../admin.json"));
-=======
 
 // ======================
-// FILE PATHS (FIXED FOR RENDER)
+// FILE PATHS
 // ======================
 const USERS_FILE = path.join(__dirname, "data.json");
 const PAYMENTS_FILE = path.join(__dirname, "payments.json");
 const TOKENS_FOLDER = path.join(__dirname, "tokens");
->>>>>>> f0bf249 (fix duplicate PORT error)
 
-// 🔥 FIX: auto-create tokens folder (YOU WERE MISSING THIS)
+// 🔥 CREATE TOKENS FOLDER
 if (!fs.existsSync(TOKENS_FOLDER)) {
     fs.mkdirSync(TOKENS_FOLDER);
 }
 
 // ======================
-// HELPERS
+// SAFE JSON READER (IMPORTANT FIX)
 // ======================
 const readJSON = (file) => {
-    if (!fs.existsSync(file)) return [];
-    return JSON.parse(fs.readFileSync(file));
+    try {
+        if (!fs.existsSync(file)) return [];
+        const data = fs.readFileSync(file, "utf-8");
+        return data ? JSON.parse(data) : [];
+    } catch {
+        return [];
+    }
 };
 
 const writeJSON = (file, data) =>
     fs.writeFileSync(file, JSON.stringify(data, null, 2));
 
+// ======================
 // USERS
+// ======================
 const getUsers = () => readJSON(USERS_FILE);
 const saveUsers = (data) => writeJSON(USERS_FILE, data);
 
+// ======================
 // PAYMENTS
+// ======================
 const getPayments = () => readJSON(PAYMENTS_FILE);
 const savePayments = (data) => writeJSON(PAYMENTS_FILE, data);
 
@@ -307,7 +304,6 @@ app.get("/revenue", verifyToken, (req, res) => {
     res.json({
         totalSales: payments.length,
         revenue: payments.length * 19.99
->>>>>>> f0bf249 (fix duplicate PORT error)
     });
 });
 
@@ -347,7 +343,7 @@ app.post("/paypal-webhook", async (req, res) => {
     const token = createToken(email);
 =======
 // ======================
-// PAYPAL WEBHOOK (REAL SaaS LOGIC)
+// PAYPAL WEBHOOK
 // ======================
 app.post("/paypal-webhook", (req, res) => {
     const event = req.body;
@@ -368,10 +364,8 @@ app.post("/paypal-webhook", (req, res) => {
 
                 saveUsers(users);
 
-                // 🔥 CREATE TOKEN FOR AUTO LOGIN
                 const token = createToken(email);
 
-                // FIXED SAFE FILE NAME (email-safe)
                 const safeEmail = email.replace(/[^a-zA-Z0-9]/g, "_");
 
                 fs.writeFileSync(
@@ -427,7 +421,7 @@ app.get("/get-token", (req, res) => {
 });
 =======
 // ======================
-// GET TOKEN (AUTO LOGIN AFTER PAYPAL)
+// GET TOKEN (AUTO LOGIN)
 // ======================
 app.get("/get-token", (req, res) => {
     const { email } = req.query;
@@ -456,13 +450,10 @@ app.listen(PORT, "0.0.0.0", () => {
     }
 >>>>>>> 8dff081 (fix duplicate PORT error)
 });
-<<<<<<< HEAD
-=======
 
 // ======================
-// START SERVER
+// START SERVER (RENDER FIX)
 // ======================
-app.listen(PORT, () => {
+app.listen(PORT, "0.0.0.0", () => {
     console.log("🔥 SaaS backend running on port", PORT);
 });
->>>>>>> f0bf249 (fix duplicate PORT error)
