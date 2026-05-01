@@ -1,3 +1,4 @@
+const db = require("./firebaseAdmin");
 const path = require("path");
 const express = require("express");
 const fs = require("fs");
@@ -19,9 +20,7 @@ app.use(express.json());
 // ======================
 // FILE PATHS
 // ======================
-const USERS_FILE = path.join(__dirname, "data.json");
-const PAYMENTS_FILE = path.join(__dirname, "payments.json");
-const TOKENS_FOLDER = path.join(__dirname, "tokens");
+
 
 // 🔥 CREATE TOKENS FOLDER
 if (!fs.existsSync(TOKENS_FOLDER)) {
@@ -78,25 +77,33 @@ const verifyToken = (req, res, next) => {
 // ======================
 // REGISTER
 // ======================
-app.post("/register", (req, res) => {
+app.post("/register", async (req, res) => {
     const { email } = req.body;
-    if (!email) return res.status(400).json({ message: "Email required" });
 
-    const users = getUsers();
-
-    if (users.find(u => u.email === email)) {
-        return res.status(400).json({ message: "Already registered" });
+    if (!email) {
+        return res.status(400).json({ message: "Email required" });
     }
 
-    users.push({
-        email,
-        paid: false,
-        createdAt: new Date()
-    });
+    try {
+        const userRef = db.collection("users").doc(email);
+        const doc = await userRef.get();
 
-    saveUsers(users);
+        if (doc.exists) {
+            return res.status(400).json({ message: "Already registered" });
+        }
 
-    res.json({ message: "Registered" });
+        await userRef.set({
+            email,
+            paid: false,
+            createdAt: new Date()
+        });
+
+        res.json({ message: "Registered 🚀" });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Server error" });
+    }
 });
 
 // ======================
