@@ -73,4 +73,19 @@ async function loadRevenue() {
 
     document.getElementById("revenue").innerText =
         `Sales: ${data.totalSales} | Revenue: $${data.revenue}`;
+<<<<<<< HEAD
+=======
+}
+
+
+async function loadRevenue() {
+    const res = await fetch(`${API_URL}/revenue`, {
+        headers: { Authorization: token }
+    });
+
+    const data = await res.json();
+
+    document.getElementById("revenue").innerText =
+        `Sales: ${data.totalSales} | Revenue: $${data.revenue}`;
+>>>>>>> 8dff081 (fix duplicate PORT error)
 }

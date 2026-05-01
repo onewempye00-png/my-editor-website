@@ -128,7 +128,14 @@ button:hover {
     transform: translateY(0);
 }
 
+<<<<<<< HEAD
 /* LOADER */
+=======
+<<<<<<< HEAD
+=======
+/* LOADER */
+>>>>>>> f0bf249 (fix duplicate PORT error)
+>>>>>>> 8dff081 (fix duplicate PORT error)
 #loader {
   position: fixed;
   top: 0;
@@ -144,7 +151,14 @@ button:hover {
   font-size: 20px;
 }
 
+<<<<<<< HEAD
 /* SECTION FADE SYSTEM */
+=======
+<<<<<<< HEAD
+=======
+/* SECTION FADE SYSTEM */
+>>>>>>> f0bf249 (fix duplicate PORT error)
+>>>>>>> 8dff081 (fix duplicate PORT error)
 .fade-section {
   opacity: 0;
   transform: translateY(20px);
@@ -156,4 +170,12 @@ button:hover {
   display: block;
   opacity: 1;
   transform: translateY(0);
+<<<<<<< HEAD
 }
+=======
+<<<<<<< HEAD
+}
+=======
+}
+>>>>>>> f0bf249 (fix duplicate PORT error)
+>>>>>>> 8dff081 (fix duplicate PORT error)
