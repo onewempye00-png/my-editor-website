@@ -125,24 +125,36 @@ app.post("/login", (req, res) => {
 // ======================
 // CHECK SUBSCRIPTION
 // ======================
-app.get("/check-subscription", (req, res) => {
+app.get("/check-subscription", async (req, res) => {
     const { email } = req.query;
 
-    const users = getUsers();
-    const user = users.find(u => u.email === email);
+    try {
+        const doc = await db.collection("users").doc(email).get();
 
-    res.json({ paid: user?.paid || false });
+        if (!doc.exists) {
+            return res.json({ paid: false });
+        }
+
+        res.json({ paid: doc.data().paid });
+
+    } catch {
+        res.json({ paid: false });
+    }
 });
-
 // ======================
 // STATS
 // ======================
-app.get("/stats", verifyToken, (req, res) => {
-    const users = getUsers();
+app.get("/stats", async (req, res) => {
+    try {
+        const snapshot = await db.collection("users").get();
 
-    res.json({
-        totalUsers: users.length
-    });
+        res.json({
+            totalUsers: snapshot.size
+        });
+
+    } catch {
+        res.json({ totalUsers: 0 });
+    }
 });
 
 // ======================
@@ -160,7 +172,7 @@ app.get("/revenue", verifyToken, (req, res) => {
 // ======================
 // PAYPAL WEBHOOK
 // ======================
-app.post("/paypal-webhook", (req, res) => {
+app.post("/paypal-webhook", async (req, res) => {
     const event = req.body;
 
     try {
@@ -169,28 +181,25 @@ app.post("/paypal-webhook", (req, res) => {
             const email = event.resource?.subscriber?.email_address;
             const subscriptionId = event.resource?.id;
 
-            const users = getUsers();
+            if (!email) return res.sendStatus(400);
 
-            const index = users.findIndex(u => u.email === email);
+            await db.collection("users").doc(email).update({
+                paid: true,
+                subscriptionId
+            });
 
-            if (index !== -1) {
-                users[index].paid = true;
-                users[index].subscriptionId = subscriptionId;
+            const token = createToken(email);
 
-                saveUsers(users);
+            const safeEmail = email.replace(/[^a-zA-Z0-9]/g, "_");
 
-                const token = createToken(email);
-
-                const safeEmail = email.replace(/[^a-zA-Z0-9]/g, "_");
-
-                fs.writeFileSync(
-                    path.join(TOKENS_FOLDER, `${safeEmail}.json`),
-                    JSON.stringify({ token })
-                );
-            }
+            fs.writeFileSync(
+                `${TOKENS_FOLDER}/${safeEmail}.json`,
+                JSON.stringify({ token })
+            );
         }
 
         res.sendStatus(200);
+
     } catch (err) {
         console.log(err);
         res.sendStatus(500);
