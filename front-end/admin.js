@@ -63,3 +63,14 @@ async function sendEmail() {
     const data = await res.json();
     alert(data.message);
 }
+
+async function loadRevenue() {
+    const res = await fetch(`${API_URL}/revenue`, {
+        headers: { Authorization: token }
+    });
+
+    const data = await res.json();
+
+    document.getElementById("revenue").innerText =
+        `Sales: ${data.totalSales} | Revenue: $${data.revenue}`;
+}

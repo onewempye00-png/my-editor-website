@@ -3,68 +3,59 @@ const express = require("express");
 const fs = require("fs");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
-const axios = require("axios");
-const sendEmail = require("./mailer");
-const getPayments = () => JSON.parse(fs.readFileSync("./backend/payments.json"));
-const savePayments = (data) => fs.writeFileSync("./backend/payments.json", JSON.stringify(data, null, 2));
-const MAX_BUYERS = 100;
-
-const app = express();
-const SECRET = "supersecretkey";
 const bodyParser = require("body-parser");
 
-app.use(bodyParser.json());
+const app = express();
+const PORT = process.env.PORT || 5000;
+const SECRET = "supersecretkey";
+
+// ======================
+// MIDDLEWARE
+// ======================
 app.use(cors());
+app.use(bodyParser.json());
 app.use(express.json());
-// SERVE FRONTEND
-app.use(express.static(path.join(__dirname, "../front-end")));
 
-// 📂 Helpers
-const getUsers = () => JSON.parse(fs.readFileSync("./backend/data.json"));
-const saveUsers = (data) => fs.writeFileSync("./backend/data.json", JSON.stringify(data, null, 2));
-const getAdmins = () => JSON.parse(fs.readFileSync("./backend/admin.json"));
+// ======================
+// FILE PATHS (FIXED FOR RENDER)
+// ======================
+const USERS_FILE = path.join(__dirname, "data.json");
+const PAYMENTS_FILE = path.join(__dirname, "payments.json");
+const TOKENS_FOLDER = path.join(__dirname, "tokens");
 
-// 🚀 REGISTER
-app.post("/register", (req, res) => {
-    const { email } = req.body;
+// 🔥 FIX: auto-create tokens folder (YOU WERE MISSING THIS)
+if (!fs.existsSync(TOKENS_FOLDER)) {
+    fs.mkdirSync(TOKENS_FOLDER);
+}
 
-    if (!email) return res.status(400).json({ message: "Email required" });
+// ======================
+// HELPERS
+// ======================
+const readJSON = (file) => {
+    if (!fs.existsSync(file)) return [];
+    return JSON.parse(fs.readFileSync(file));
+};
 
-    const users = getUsers();
+const writeJSON = (file, data) =>
+    fs.writeFileSync(file, JSON.stringify(data, null, 2));
 
-    if (users.find(u => u.email === email)) {
-        return res.status(400).json({ message: "Already registered" });
-    }
+// USERS
+const getUsers = () => readJSON(USERS_FILE);
+const saveUsers = (data) => writeJSON(USERS_FILE, data);
 
-    users.push({
-        email,
-        date: new Date()
-    });
+// PAYMENTS
+const getPayments = () => readJSON(PAYMENTS_FILE);
+const savePayments = (data) => writeJSON(PAYMENTS_FILE, data);
 
-    saveUsers(users);
+// ======================
+// JWT
+// ======================
+const createToken = (email) => {
+    return jwt.sign({ email }, SECRET, { expiresIn: "7d" });
+};
 
-    res.json({ message: "Registered successfully 🚀" });
-});
-
-// 🔐 LOGIN
-app.post("/login", (req, res) => {
-    const { username, password } = req.body;
-
-    const admins = getAdmins();
-
-    const admin = admins.find(a => a.username === username && a.password === password);
-
-    if (!admin) return res.status(401).json({ message: "Invalid credentials" });
-
-    const token = jwt.sign({ username }, SECRET, { expiresIn: "1h" });
-
-    res.json({ token });
-});
-
-// 🔒 VERIFY TOKEN
 const verifyToken = (req, res, next) => {
     const token = req.headers["authorization"];
-
     if (!token) return res.status(403).json({ message: "No token" });
 
     try {
@@ -75,12 +66,61 @@ const verifyToken = (req, res, next) => {
     }
 };
 
-// 👥 GET USERS
-app.get("/users", verifyToken, (req, res) => {
-    res.json(getUsers());
+// ======================
+// REGISTER
+// ======================
+app.post("/register", (req, res) => {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: "Email required" });
+
+    const users = getUsers();
+
+    if (users.find(u => u.email === email)) {
+        return res.status(400).json({ message: "Already registered" });
+    }
+
+    users.push({
+        email,
+        paid: false,
+        createdAt: new Date()
+    });
+
+    saveUsers(users);
+
+    res.json({ message: "Registered" });
 });
 
-// 📊 STATS
+// ======================
+// LOGIN
+// ======================
+app.post("/login", (req, res) => {
+    const { email } = req.body;
+
+    const users = getUsers();
+    const user = users.find(u => u.email === email);
+
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const token = createToken(email);
+
+    res.json({ token, paid: user.paid });
+});
+
+// ======================
+// CHECK SUBSCRIPTION
+// ======================
+app.get("/check-subscription", (req, res) => {
+    const { email } = req.query;
+
+    const users = getUsers();
+    const user = users.find(u => u.email === email);
+
+    res.json({ paid: user?.paid || false });
+});
+
+// ======================
+// STATS
+// ======================
 app.get("/stats", verifyToken, (req, res) => {
     const users = getUsers();
 
@@ -89,93 +129,85 @@ app.get("/stats", verifyToken, (req, res) => {
     });
 });
 
-// 📧 SEND EMAIL TO ALL USERS
-app.post("/send-email", verifyToken, async (req, res) => {
-    const { subject, message } = req.body;
-
-    const users = getUsers();
-
-    try {
-        for (let user of users) {
-            await sendEmail(user.email, subject, message);
-        }
-
-        res.json({ message: "Emails sent successfully 🚀" });
-
-    } catch (err) {
-        res.status(500).json({ message: "Error sending emails" });
-    }
-});
-
-// 💰 SAVE PAYMENT
-app.post("/save-payment", async (req, res) => {
-    const { email, payerName } = req.body;
-
-    if (!email) return res.status(400).json({ message: "Email required" });
-
+// ======================
+// REVENUE DASHBOARD
+// ======================
+app.get("/revenue", verifyToken, (req, res) => {
     const payments = getPayments();
 
-    const MAX_BUYERS = 100;
-    
-    payments.push({
-        email,
-        payerName,
-        date: new Date()
+    res.json({
+        totalSales: payments.length,
+        revenue: payments.length * 19.99
     });
-
-    savePayments(payments);
-
-    res.json({ message: "Payment saved" });
 });
 
-// DEFAULT ROUTE (FIXES "Cannot GET /")
-app.get("/", (req, res) => {
-    res.sendFile(path.join(__dirname, "../front-end/index.html"));
-});
-
-// 💰 PAYPAL WEBHOOK (REAL PAYMENT CONFIRMATION)
-app.post("/paypal-webhook", express.json(), async (req, res) => {
+// ======================
+// PAYPAL WEBHOOK (REAL SaaS LOGIC)
+// ======================
+app.post("/paypal-webhook", (req, res) => {
     const event = req.body;
 
     try {
-        // ONLY PROCESS COMPLETED PAYMENTS
-        if (event.event_type === "PAYMENT.CAPTURE.COMPLETED") {
+        if (event.event_type === "BILLING.SUBSCRIPTION.ACTIVATED") {
 
-            const email = event.resource?.payer?.email_address;
+            const email = event.resource?.subscriber?.email_address;
+            const subscriptionId = event.resource?.id;
 
-            if (!email) return res.sendStatus(400);
+            const users = getUsers();
 
-            const payments = getPayments();
+            const index = users.findIndex(u => u.email === email);
 
-            payments.push({
-                email,
-                status: "paid",
-                date: new Date()
-            });
+            if (index !== -1) {
+                users[index].paid = true;
+                users[index].subscriptionId = subscriptionId;
 
-            savePayments(payments);
+                saveUsers(users);
 
-            console.log("💰 New paid user:", email);
+                // 🔥 CREATE TOKEN FOR AUTO LOGIN
+                const token = createToken(email);
+
+                // FIXED SAFE FILE NAME (email-safe)
+                const safeEmail = email.replace(/[^a-zA-Z0-9]/g, "_");
+
+                fs.writeFileSync(
+                    path.join(TOKENS_FOLDER, `${safeEmail}.json`),
+                    JSON.stringify({ token })
+                );
+            }
         }
 
         res.sendStatus(200);
-
     } catch (err) {
         console.log(err);
         res.sendStatus(500);
     }
 });
-// 🚫 SCARCITY CHECK
-const payments = getPayments();
 
-if (payments.length >= MAX_BUYERS) {
-    return res.status(403).json({
-        message: "Sold out — only 100 early access spots available"
-    });
-}
+// ======================
+// GET TOKEN (AUTO LOGIN AFTER PAYPAL)
+// ======================
+app.get("/get-token", (req, res) => {
+    const { email } = req.query;
 
-// 🚀 START SERVER
-app.listen(PORT, () => {
-    console.log(`🔥 Server running on port ${PORT}`);
+    try {
+        const safeEmail = email.replace(/[^a-zA-Z0-9]/g, "_");
+
+        const filePath = path.join(TOKENS_FOLDER, `${safeEmail}.json`);
+
+        const data = JSON.parse(fs.readFileSync(filePath));
+
+        fs.unlinkSync(filePath);
+
+        res.json(data);
+
+    } catch {
+        res.status(404).json({ message: "No token" });
+    }
 });
-const PORT = process.env.PORT || 5000;
+
+// ======================
+// START SERVER
+// ======================
+app.listen(PORT, () => {
+    console.log("🔥 SaaS backend running on port", PORT);
+});

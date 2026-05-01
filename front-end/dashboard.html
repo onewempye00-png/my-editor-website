@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Dashboard</title>
+</head>
+<body>
+
+<h1>Welcome to your Dashboard</h1>
+
+<p id="userEmail"></p>
+<p id="plan"></p>
+
+<script>
+const token = localStorage.getItem("token");
+
+async function loadDashboard() {
+    const res = await fetch("https://my-editor-website.onrender.com/users", {
+        headers: { Authorization: token }
+    });
+
+    if (!res.ok) {
+        document.body.innerHTML = "Not authorized";
+        return;
+    }
+
+    const users = await res.json();
+
+    document.getElementById("userEmail").innerText = "Logged in ✔";
+    document.getElementById("plan").innerText = "Premium Plan";
+}
+
+loadDashboard();
+</script>
+
+</body>
+</html>

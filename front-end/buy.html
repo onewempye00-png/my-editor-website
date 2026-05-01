@@ -1,13 +1,13 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<title>Get Early Access - My Editor</title>
+  <title>Get Early Access - My Editor</title>
 <link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
 
-<header>
+  <header>
     <div class="logo">My Editor</div>
     <nav>
         <a href="index.html">Home</a>
@@ -15,41 +15,35 @@
     </nav>
 </header>
 
-<section class="hero">
-    <h1>🔥 Get Early Access</h1>
-    <p>Limited spots available — secure yours now</p>
+<h1>Subscribe to My Editor</h1>
 
-    <!-- PAYPAL HOSTED BUTTON -->
-    <script 
-      src="https://www.paypal.com/sdk/js?client-id=BAAJ-l6rggKBeuFgigPL23PPY3K8fWGkOTiZhy0_r9NuNvWxUBgIGMD8wEN_yfrp8uCgE7X4rf9pvDh_8M&components=hosted-buttons&disable-funding=venmo&currency=USD">
-    </script>
 
-    <div id="paypal-container-KR33TFPVZUGVW"></div>
 
-    <script>
-paypal.HostedButtons({
-  hostedButtonId: "KR33TFPVZUGVW",
-  onApprove: async function(data, actions) {
 
-    const email = prompt("Enter your email for early access:");
 
-    await fetch("http://localhost:5000/save-payment", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        email: email,
-        payerName: "PayPal User"
-      })
-    });
 
-    window.location.href = "success.html";
-  }
-}).render("#paypal-container-KR33TFPVZUGVW");
+
+
+
+
+
+
+<!-- 🔥 PAYPAL BUTTON GOES HERE -->
+<div id="paypal-button-container-P-3LE982142A1209921NH2GCUI"></div>
+
+<!-- PAYPAL SDK + BUTTON SCRIPT -->
+<!-- PAYPAL SDK -->
+<script src="https://www.paypal.com/sdk/js?client-id=AW61Y4ysJcCJmudjLgoZuNiPMhw84aTj17bcNV7szYj5OfU_jQpAra884KYvu02Xl4xuywVwIbQ_c6Z-&vault=true&intent=subscription"></script>
+
+<!-- BUTTON CONTAINER -->
+<div id="paypal-button-container"></div>
+
+<!-- YOUR PAYPAL LOGIC -->
+<script type="module">
+import { initPayPalButton } from "./js/paypal.js";
+
+initPayPalButton("paypal-button-container");
 </script>
-
-</section>
 
 </body>
 </html>
