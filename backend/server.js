@@ -80,10 +80,7 @@ app.post("/admin-login", (req, res) => {
         { expiresIn: "7d" }
     );
 
-    res.json({
-        message: "Admin logged in",
-        token
-    });
+    res.json({ token });
 });
 
 // ======================
@@ -170,79 +167,58 @@ app.post("/register", async (req, res) => {
 app.post("/login", async (req, res) => {
     const { email } = req.body;
 
-    try {
-        const doc = await db.collection("users").doc(email).get();
+    const doc = await db.collection("users").doc(email).get();
 
-        if (!doc.exists) {
-            return res.status(404).json({ message: "User not found" });
-        }
-
-        const token = createToken(email);
-
-        res.json({
-            token,
-            paid: doc.data().paid
-        });
-
-    } catch {
-        res.status(500).json({ message: "Login error" });
+    if (!doc.exists) {
+        return res.status(404).json({ message: "User not found" });
     }
-});
 
+    const token = createToken(email);
+
+    res.json({
+        token,
+        paid: doc.data().paid
+    });
+});
 // ======================
 // CHECK SUBSCRIPTION
 // ======================
 app.get("/check-subscription", async (req, res) => {
     const { email } = req.query;
 
-    try {
-        const doc = await db.collection("users").doc(email).get();
+    const doc = await db.collection("users").doc(email).get();
 
-        if (!doc.exists) {
-            return res.json({ paid: false });
-        }
-
-        res.json({ paid: doc.data().paid });
-
-    } catch {
-        res.json({ paid: false });
+    if (!doc.exists) {
+        return res.json({ paid: false });
     }
+
+    res.json({ paid: doc.data().paid });
 });
 
 // ======================
 // STATS (ADMIN ONLY)
 // ======================
 app.get("/stats", isAdmin, async (req, res) => {
-    try {
-        const snapshot = await db.collection("users").get();
+    const snapshot = await db.collection("users").get();
 
-        res.json({
-            totalUsers: snapshot.size
-        });
-
-    } catch {
-        res.json({ totalUsers: 0 });
-    }
+    res.json({
+        totalUsers: snapshot.size
+    });
 });
 
 // ======================
 // ADMIN USERS
 // ======================
 app.get("/admin/users", isAdmin, async (req, res) => {
-    try {
-        const snapshot = await db.collection("users").get();
+    const snapshot = await db.collection("users").get();
 
-        const users = [];
+    const users = [];
 
-        snapshot.forEach(doc => {
-            users.push(doc.data());
-        });
+    snapshot.forEach(doc => {
+        users.push(doc.data());
+    });
 
-        res.json(users);
-
-    } catch {
-        res.status(500).json({ message: "Failed to load users" });
-    }
+    res.json(users);
 });
 
 // ======================
