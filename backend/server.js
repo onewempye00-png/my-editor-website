@@ -1,4 +1,5 @@
 require("dotenv").config();
+console.log("PROJECT:", process.env.FIREBASE_PROJECT_ID);
 
 const path = require("path");
 const express = require("express");
