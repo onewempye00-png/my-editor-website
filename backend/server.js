@@ -6,6 +6,10 @@ const fs = require("fs");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
 const adminConfig = require("./adminConfig");
+const cors = require("cors");
+app.use(cors({
+    origin: "*"
+}));
 
 const app = express();
 const PORT = process.env.PORT || 5000;
