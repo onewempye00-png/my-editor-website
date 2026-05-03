@@ -1,22 +1,31 @@
-const admin = require("firebase-admin");
 require("dotenv").config();
+const admin = require("firebase-admin");
 
-if (
-    !process.env.FIREBASE_PROJECT_ID ||
-    !process.env.FIREBASE_PRIVATE_KEY ||
-    !process.env.FIREBASE_CLIENT_EMAIL
-) {
-    throw new Error("❌ Missing Firebase env variables");
+function cleanPrivateKey(key) {
+    if (!key) return null;
+    return key.replace(/\\n/g, "\n");
+}
+
+const projectId = process.env.FIREBASE_PROJECT_ID;
+const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+const privateKey = cleanPrivateKey(process.env.FIREBASE_PRIVATE_KEY);
+
+if (!projectId || !clientEmail || !privateKey) {
+    console.error("❌ Firebase ENV missing:");
+    console.error({
+        projectId: !!projectId,
+        clientEmail: !!clientEmail,
+        privateKey: !!privateKey
+    });
+    throw new Error("Firebase config failed");
 }
 
 admin.initializeApp({
     credential: admin.credential.cert({
-        projectId: process.env.FIREBASE_PROJECT_ID,
-        privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n"),
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        projectId,
+        clientEmail,
+        privateKey,
     }),
 });
 
-const db = admin.firestore();
-
-module.exports = db;
+module.exports = admin.firestore();
