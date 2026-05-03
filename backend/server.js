@@ -147,11 +147,13 @@ app.post("/login", async (req, res) => {
             paid: doc.data().paid
         });
 
-    } catch (err) {
-        console.log(err);
-        res.status(500).json({ message: "Login error" });
-    }
-});
+   } catch (err) {
+    console.log("🔥 LOGIN ERROR:", err);
+    res.status(500).json({
+        message: "Login error",
+        error: err.message
+    });
+}
 
 // ======================
 // CHECK SUBSCRIPTION
