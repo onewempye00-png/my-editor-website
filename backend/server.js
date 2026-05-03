@@ -1,5 +1,4 @@
 require("dotenv").config();
-console.log("PROJECT:", process.env.FIREBASE_PROJECT_ID);
 
 const path = require("path");
 const express = require("express");
@@ -26,23 +25,17 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(frontendPath));
 
-
-});
 // ======================
-// API TEST ROUTE
+// TEST API
 // ======================
 app.get("/api", (req, res) => {
-    res.json({
-        status: "online",
-        message: "Backend running"
-    });
+    res.json({ status: "online" });
 });
-    
+
 // ======================
 // TOKENS FOLDER
 // ======================
 const TOKENS_FOLDER = path.join(__dirname, "tokens");
-
 if (!fs.existsSync(TOKENS_FOLDER)) {
     fs.mkdirSync(TOKENS_FOLDER);
 }
@@ -83,46 +76,28 @@ app.post("/admin-login", (req, res) => {
 app.post("/register", async (req, res) => {
     const { email } = req.body;
 
-    console.log("➡️ REGISTER REQUEST:", email);
-
     if (!email) {
         return res.status(400).json({ message: "Email required" });
     }
 
     try {
-        console.log("🔥 CONNECTING TO FIREBASE...");
-
-        const userRef = db.collection("users").doc(email);
-
-        console.log("🔥 GETTING USER DOC...");
-        const doc = await userRef.get();
-
-        console.log("🔥 DOC EXISTS:", doc.exists);
+        const doc = await db.collection("users").doc(email).get();
 
         if (doc.exists) {
             return res.status(400).json({ message: "Already registered" });
         }
 
-        console.log("🔥 CREATING USER...");
-
-        await userRef.set({
+        await db.collection("users").doc(email).set({
             email,
             paid: false,
             createdAt: new Date().toISOString()
         });
 
-        console.log("✅ USER CREATED");
-
         res.json({ message: "Registered 🚀" });
 
     } catch (err) {
-        console.log("❌ FULL FIREBASE ERROR:");
-        console.log(err);
-
-        res.status(500).json({
-            message: "Server error",
-            error: err.message
-        });
+        console.log("REGISTER ERROR:", err);
+        res.status(500).json({ message: err.message });
     }
 });
 
@@ -147,11 +122,8 @@ app.post("/login", async (req, res) => {
         });
 
     } catch (err) {
-        console.log("🔥 LOGIN ERROR:", err);
-        res.status(500).json({
-            message: "Login error",
-            error: err.message
-        });
+        console.log("LOGIN ERROR:", err);
+        res.status(500).json({ message: err.message });
     }
 });
 
@@ -170,7 +142,7 @@ app.get("/check-subscription", async (req, res) => {
 
         res.json({ paid: doc.data().paid });
 
-    } catch {
+    } catch (err) {
         res.json({ paid: false });
     }
 });
@@ -190,15 +162,21 @@ app.get("/stats", async (req, res) => {
         res.json({ totalUsers: 0 });
     }
 });
+
 // ======================
-// FRONTEND ROUTING FIX
+// FRONTEND ROUTES (VERY LAST)
 // ======================
+app.get("/", (req, res) => {
+    res.sendFile(path.join(frontendPath, "index.html"));
+});
+
 app.get("*", (req, res) => {
     res.sendFile(path.join(frontendPath, "index.html"));
-    
+});
+
 // ======================
 // START SERVER
 // ======================
 app.listen(PORT, "0.0.0.0", () => {
-    console.log("🔥 SaaS backend running on port", PORT);
+    console.log("🔥 Server running on port", PORT);
 });
