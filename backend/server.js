@@ -92,17 +92,27 @@ app.post("/admin-login", (req, res) => {
 app.post("/register", async (req, res) => {
     const { email } = req.body;
 
+    console.log("➡️ REGISTER REQUEST:", email);
+
     if (!email) {
         return res.status(400).json({ message: "Email required" });
     }
 
     try {
+        console.log("🔥 CONNECTING TO FIREBASE...");
+
         const userRef = db.collection("users").doc(email);
+
+        console.log("🔥 GETTING USER DOC...");
         const doc = await userRef.get();
+
+        console.log("🔥 DOC EXISTS:", doc.exists);
 
         if (doc.exists) {
             return res.status(400).json({ message: "Already registered" });
         }
+
+        console.log("🔥 CREATING USER...");
 
         await userRef.set({
             email,
@@ -110,10 +120,14 @@ app.post("/register", async (req, res) => {
             createdAt: new Date().toISOString()
         });
 
+        console.log("✅ USER CREATED");
+
         res.json({ message: "Registered 🚀" });
 
     } catch (err) {
-        console.log("🔥 REGISTER ERROR:", err);
+        console.log("❌ FULL FIREBASE ERROR:");
+        console.log(err);
+
         res.status(500).json({
             message: "Server error",
             error: err.message
