@@ -1,5 +1,13 @@
 const API_URL = "https://my-editor-website.onrender.com";
 
+async function testBackend() {
+    const res = await fetch(`${API_URL}/`);
+    const data = await res.json();
+    console.log(data);
+}
+
+testBackend();
+
 // ======================
 // ⏳ COUNTDOWN (6 MONTHS)
 // ======================
