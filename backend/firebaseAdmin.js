@@ -1,17 +1,5 @@
 const admin = require("firebase-admin");
 
-const requiredEnvVars = [
-    "FIREBASE_PROJECT_ID",
-    "FIREBASE_CLIENT_EMAIL",
-    "FIREBASE_PRIVATE_KEY"
-];
-
-requiredEnvVars.forEach((key) => {
-    if (!process.env[key]) {
-        throw new Error(`❌ Missing Firebase env variable: ${key}`);
-    }
-});
-
 admin.initializeApp({
     credential: admin.credential.cert({
         projectId: process.env.FIREBASE_PROJECT_ID,
