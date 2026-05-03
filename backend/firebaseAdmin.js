@@ -11,9 +11,3 @@ admin.initializeApp({
 const db = admin.firestore();
 
 module.exports = db;
-
-const db = admin.firestore();
-
-console.log("🔥 Firebase Admin connected successfully");
-
-module.exports = db;
