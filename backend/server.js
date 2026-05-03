@@ -1,4 +1,5 @@
 require("dotenv").config();
+
 const db = require("./firebaseAdmin");
 const path = require("path");
 const express = require("express");
@@ -6,40 +7,46 @@ const fs = require("fs");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
 const adminConfig = require("./adminConfig");
-const frontendPath = path.join(__dirname, "../frontend");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 const SECRET = "supersecretkey";
 
 // ======================
+// FRONTEND PATH (IMPORTANT FIX)
+// ======================
+const frontendPath = path.join(__dirname, "../front-end");
+
+// ======================
 // MIDDLEWARE
 // ======================
 app.use(cors());
 app.use(express.json());
+
+// serve frontend files
 app.use(express.static(frontendPath));
 
 // ======================
-// ROOT ROUTE
-// ======================
-app.get("/", (req, res) => {
-    res.json({
-        status: "online",
-        message: "Backend running"
-    });
-});
-app.get("*", (req, res) => {
-    res.sendFile(path.join(__dirname, "../frontend/index.html"));
-});
-
-// ======================
-// FOLDERS
+// TOKENS FOLDER
 // ======================
 const TOKENS_FOLDER = path.join(__dirname, "tokens");
 
 if (!fs.existsSync(TOKENS_FOLDER)) {
     fs.mkdirSync(TOKENS_FOLDER);
 }
+
+// ======================
+// ROOT ROUTE (FIXED)
+// ======================
+// IMPORTANT: DO NOT block frontend with JSON anymore
+app.get("/", (req, res) => {
+    res.sendFile(path.join(frontendPath, "index.html"));
+});
+
+// SPA fallback (IMPORTANT FOR ROUTING)
+app.get("*", (req, res) => {
+    res.sendFile(path.join(frontendPath, "index.html"));
+});
 
 // ======================
 // SAFE JSON
@@ -85,25 +92,7 @@ app.post("/admin-login", (req, res) => {
 });
 
 // ======================
-// VERIFY USER TOKEN
-// ======================
-const verifyToken = (req, res, next) => {
-    const token = req.headers["authorization"];
-
-    if (!token) {
-        return res.status(403).json({ message: "No token" });
-    }
-
-    try {
-        req.user = jwt.verify(token, SECRET);
-        next();
-    } catch {
-        res.status(401).json({ message: "Invalid token" });
-    }
-};
-
-// ======================
-// ADMIN MIDDLEWARE (FIXED)
+// AUTH MIDDLEWARE
 // ======================
 const isAdmin = (req, res, next) => {
     const token = req.headers["authorization"];
@@ -181,6 +170,7 @@ app.post("/login", async (req, res) => {
         paid: doc.data().paid
     });
 });
+
 // ======================
 // CHECK SUBSCRIPTION
 // ======================
@@ -197,7 +187,7 @@ app.get("/check-subscription", async (req, res) => {
 });
 
 // ======================
-// STATS (ADMIN ONLY)
+// STATS
 // ======================
 app.get("/stats", isAdmin, async (req, res) => {
     const snapshot = await db.collection("users").get();
