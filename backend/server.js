@@ -7,7 +7,6 @@ const fs = require("fs");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
 
-// ⚠️ Firebase MUST exist and be correct
 const db = require("./firebaseAdmin");
 const adminConfig = require("./adminConfig");
 
@@ -15,14 +14,8 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const SECRET = "supersecretkey";
 
-
-console.log("ENV CHECK:", {
-    project: process.env.FIREBASE_PROJECT_ID,
-    email: process.env.FIREBASE_CLIENT_EMAIL,
-    key: process.env.FIREBASE_PRIVATE_KEY ? "OK" : "MISSING"
-});
 // ======================
-// FRONTEND PATH (IMPORTANT FIX)
+// FRONTEND PATH
 // ======================
 const frontendPath = path.join(__dirname, "../front-end");
 
@@ -34,7 +27,7 @@ app.use(express.json());
 app.use(express.static(frontendPath));
 
 // ======================
-// ROOT ROUTE (API TEST)
+// API TEST ROUTE
 // ======================
 app.get("/api", (req, res) => {
     res.json({
@@ -94,7 +87,7 @@ app.post("/admin-login", (req, res) => {
 });
 
 // ======================
-// REGISTER (FIXED - SAFE FIREBASE)
+// REGISTER
 // ======================
 app.post("/register", async (req, res) => {
     const { email } = req.body;
@@ -119,14 +112,15 @@ app.post("/register", async (req, res) => {
 
         res.json({ message: "Registered 🚀" });
 
-} catch (err) {
-    console.log("🔥 REGISTER ERROR:", err);
-    res.status(500).json({
-        message: "Server error",
-        error: err.message
-    });
-}
-    
+    } catch (err) {
+        console.log("🔥 REGISTER ERROR:", err);
+        res.status(500).json({
+            message: "Server error",
+            error: err.message
+        });
+    }
+});
+
 // ======================
 // LOGIN
 // ======================
@@ -147,13 +141,14 @@ app.post("/login", async (req, res) => {
             paid: doc.data().paid
         });
 
-   } catch (err) {
-    console.log("🔥 LOGIN ERROR:", err);
-    res.status(500).json({
-        message: "Login error",
-        error: err.message
-    });
-}
+    } catch (err) {
+        console.log("🔥 LOGIN ERROR:", err);
+        res.status(500).json({
+            message: "Login error",
+            error: err.message
+        });
+    }
+});
 
 // ======================
 // CHECK SUBSCRIPTION
@@ -176,7 +171,7 @@ app.get("/check-subscription", async (req, res) => {
 });
 
 // ======================
-// STATS (ADMIN)
+// STATS
 // ======================
 app.get("/stats", async (req, res) => {
     try {
@@ -195,5 +190,5 @@ app.get("/stats", async (req, res) => {
 // START SERVER
 // ======================
 app.listen(PORT, "0.0.0.0", () => {
-    console.log("🔥 Backend running on port", PORT);
+    console.log("🔥 SaaS backend running on port", PORT);
 });
