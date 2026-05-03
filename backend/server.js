@@ -15,6 +15,12 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const SECRET = "supersecretkey";
 
+
+console.log("ENV CHECK:", {
+    project: process.env.FIREBASE_PROJECT_ID,
+    email: process.env.FIREBASE_CLIENT_EMAIL,
+    key: process.env.FIREBASE_PRIVATE_KEY ? "OK" : "MISSING"
+});
 // ======================
 // FRONTEND PATH (IMPORTANT FIX)
 // ======================
