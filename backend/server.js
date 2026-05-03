@@ -22,11 +22,10 @@ const frontendPath = path.join(__dirname, "../front-end");
 // ======================
 // MIDDLEWARE
 // ======================
-// ✅ API routes FIRST
-app.post("/register", ...)
-app.post("/login", ...)
-app.get("/stats", ...)
-app.get("/check-subscription", ...)
+app.use(cors());
+app.use(express.json());
+app.use(express.static(frontendPath));
+
 
 });
 // ======================
