@@ -1,10 +1,11 @@
+require("dotenv").config();
 const db = require("./firebaseAdmin");
 const path = require("path");
 const express = require("express");
 const fs = require("fs");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
-const bodyParser = require("body-parser");
+const adminConfig = require("./adminConfig");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -14,21 +15,29 @@ const SECRET = "supersecretkey";
 // MIDDLEWARE
 // ======================
 app.use(cors());
-app.use(bodyParser.json());
 app.use(express.json());
 
 // ======================
-// FILE PATHS
+// ROOT ROUTE
 // ======================
+app.get("/", (req, res) => {
+    res.json({
+        status: "online",
+        message: "Backend running"
+    });
+});
 
+// ======================
+// FOLDERS
+// ======================
+const TOKENS_FOLDER = path.join(__dirname, "tokens");
 
-// 🔥 CREATE TOKENS FOLDER
 if (!fs.existsSync(TOKENS_FOLDER)) {
     fs.mkdirSync(TOKENS_FOLDER);
 }
 
 // ======================
-// SAFE JSON READER (IMPORTANT FIX)
+// SAFE JSON
 // ======================
 const readJSON = (file) => {
     try {
@@ -40,21 +49,6 @@ const readJSON = (file) => {
     }
 };
 
-const writeJSON = (file, data) =>
-    fs.writeFileSync(file, JSON.stringify(data, null, 2));
-
-// ======================
-// USERS
-// ======================
-const getUsers = () => readJSON(USERS_FILE);
-const saveUsers = (data) => writeJSON(USERS_FILE, data);
-
-// ======================
-// PAYMENTS
-// ======================
-const getPayments = () => readJSON(PAYMENTS_FILE);
-const savePayments = (data) => writeJSON(PAYMENTS_FILE, data);
-
 // ======================
 // JWT
 // ======================
@@ -62,13 +56,74 @@ const createToken = (email) => {
     return jwt.sign({ email }, SECRET, { expiresIn: "7d" });
 };
 
+// ======================
+// ADMIN LOGIN
+// ======================
+app.post("/admin-login", (req, res) => {
+    const { email, password } = req.body;
+
+    const admin = adminConfig.admins.find(
+        a => a.email === email && a.password === password
+    );
+
+    if (!admin) {
+        return res.status(401).json({ message: "Invalid admin login" });
+    }
+
+    const token = jwt.sign(
+        { email, role: "admin" },
+        SECRET,
+        { expiresIn: "7d" }
+    );
+
+    res.json({
+        message: "Admin logged in",
+        token
+    });
+});
+
+// ======================
+// VERIFY USER TOKEN
+// ======================
 const verifyToken = (req, res, next) => {
     const token = req.headers["authorization"];
-    if (!token) return res.status(403).json({ message: "No token" });
+
+    if (!token) {
+        return res.status(403).json({ message: "No token" });
+    }
 
     try {
         req.user = jwt.verify(token, SECRET);
         next();
+    } catch {
+        res.status(401).json({ message: "Invalid token" });
+    }
+};
+
+// ======================
+// ADMIN MIDDLEWARE (FIXED)
+// ======================
+const isAdmin = (req, res, next) => {
+    const token = req.headers["authorization"];
+
+    if (!token) {
+        return res.status(403).json({ message: "No token" });
+    }
+
+    try {
+        const decoded = jwt.verify(token, SECRET);
+
+        const isAllowed = adminConfig.admins.some(
+            a => a.email === decoded.email
+        );
+
+        if (!isAllowed) {
+            return res.status(403).json({ message: "Not admin" });
+        }
+
+        req.user = decoded;
+        next();
+
     } catch {
         res.status(401).json({ message: "Invalid token" });
     }
@@ -100,8 +155,7 @@ app.post("/register", async (req, res) => {
 
         res.json({ message: "Registered 🚀" });
 
-    } catch (err) {
-        console.error(err);
+    } catch {
         res.status(500).json({ message: "Server error" });
     }
 });
@@ -109,17 +163,26 @@ app.post("/register", async (req, res) => {
 // ======================
 // LOGIN
 // ======================
-app.post("/login", (req, res) => {
+app.post("/login", async (req, res) => {
     const { email } = req.body;
 
-    const users = getUsers();
-    const user = users.find(u => u.email === email);
+    try {
+        const doc = await db.collection("users").doc(email).get();
 
-    if (!user) return res.status(404).json({ message: "User not found" });
+        if (!doc.exists) {
+            return res.status(404).json({ message: "User not found" });
+        }
 
-    const token = createToken(email);
+        const token = createToken(email);
 
-    res.json({ token, paid: user.paid });
+        res.json({
+            token,
+            paid: doc.data().paid
+        });
+
+    } catch {
+        res.status(500).json({ message: "Login error" });
+    }
 });
 
 // ======================
@@ -141,10 +204,11 @@ app.get("/check-subscription", async (req, res) => {
         res.json({ paid: false });
     }
 });
+
 // ======================
-// STATS
+// STATS (ADMIN ONLY)
 // ======================
-app.get("/stats", async (req, res) => {
+app.get("/stats", isAdmin, async (req, res) => {
     try {
         const snapshot = await db.collection("users").get();
 
@@ -158,10 +222,32 @@ app.get("/stats", async (req, res) => {
 });
 
 // ======================
-// REVENUE DASHBOARD
+// ADMIN USERS
 // ======================
-app.get("/revenue", verifyToken, (req, res) => {
-    const payments = getPayments();
+app.get("/admin/users", isAdmin, async (req, res) => {
+    try {
+        const snapshot = await db.collection("users").get();
+
+        const users = [];
+
+        snapshot.forEach(doc => {
+            users.push(doc.data());
+        });
+
+        res.json(users);
+
+    } catch {
+        res.status(500).json({ message: "Failed to load users" });
+    }
+});
+
+// ======================
+// REVENUE
+// ======================
+app.get("/revenue", isAdmin, (req, res) => {
+    const file = path.join(__dirname, "payments.json");
+
+    const payments = readJSON(file);
 
     res.json({
         totalSales: payments.length,
@@ -193,21 +279,20 @@ app.post("/paypal-webhook", async (req, res) => {
             const safeEmail = email.replace(/[^a-zA-Z0-9]/g, "_");
 
             fs.writeFileSync(
-                `${TOKENS_FOLDER}/${safeEmail}.json`,
+                path.join(TOKENS_FOLDER, `${safeEmail}.json`),
                 JSON.stringify({ token })
             );
         }
 
         res.sendStatus(200);
 
-    } catch (err) {
-        console.log(err);
+    } catch {
         res.sendStatus(500);
     }
 });
 
 // ======================
-// GET TOKEN (AUTO LOGIN)
+// GET TOKEN
 // ======================
 app.get("/get-token", (req, res) => {
     const { email } = req.query;
@@ -229,7 +314,7 @@ app.get("/get-token", (req, res) => {
 });
 
 // ======================
-// START SERVER (RENDER FIX)
+// START SERVER
 // ======================
 app.listen(PORT, "0.0.0.0", () => {
     console.log("🔥 SaaS backend running on port", PORT);

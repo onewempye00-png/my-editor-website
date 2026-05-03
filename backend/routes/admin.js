@@ -1,18 +1,30 @@
 const express = require("express");
-const User = require("../models/User");
+const db = require("../firebaseAdmin");
 const { verifyToken } = require("../auth");
 
 const router = express.Router();
 
-// revenue dashboard
+// ======================
+// REVENUE DASHBOARD (FIREBASE)
+// ======================
 router.get("/revenue", verifyToken, async (req, res) => {
+    try {
+        const snapshot = await db.collection("users")
+            .where("paid", "==", true)
+            .get();
 
-    const users = await User.find({ isPaid: true });
+        const totalSubscribers = snapshot.size;
+        const revenue = totalSubscribers * 9.99;
 
-    res.json({
-        totalSubscribers: users.length,
-        revenue: users.length * 9.99
-    });
+        res.json({
+            totalSubscribers,
+            revenue
+        });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Server error" });
+    }
 });
 
 module.exports = router;

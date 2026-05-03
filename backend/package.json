@@ -3,17 +3,15 @@
   "version": "3.0.0",
   "main": "backend/server.js",
   "scripts": {
-    "start": "node backend/server.js"
+    "start": "node server.js"
   },
   "dependencies": {
     "axios": "^1.15.2",
-    "body-parser": "^2.2.2",
     "cors": "^2.8.5",
+    "dotenv": "^17.4.2",
     "express": "^4.22.1",
-    "firebase": "^12.12.1",
     "firebase-admin": "^13.8.0",
     "jsonwebtoken": "^9.0.0",
-    "nodemailer": "^8.0.7",
-    "raw-body": "^3.0.2"
+    "nodemailer": "^6.9.13"
   }
 }

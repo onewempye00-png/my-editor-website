@@ -1,33 +1,43 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Admin</title>
-<link rel="stylesheet" href="admin.css">
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="admin.css">
 </head>
-
 <body>
 
-<div id="login">
-<h2>Login</h2>
-<input id="username" placeholder="Username">
-<input id="password" type="password" placeholder="Password">
-<button onclick="login()">Login</button>
-</div>
+<h1>Admin Dashboard</h1>
 
-<div id="dashboard" style="display:none;">
-<h2>Dashboard</h2>
-<p id="stats"></p>
-
+<button onclick="loadStats()">Load Stats</button>
 <button onclick="loadUsers()">Load Users</button>
-<ul id="users"></ul>
 
-<h3>Send Email</h3>
-<input id="subject" placeholder="Subject">
-<input id="emailMessage" placeholder="Message">
-<button onclick="sendEmail()">Send</button>
+<pre id="output"></pre>
 
-</div>
+<script>
+const token = localStorage.getItem("admin_token");
 
-<script src="admin.js"></script>
+async function loadStats() {
+    const res = await fetch("https://my-editor-website.onrender.com/stats", {
+        headers: {
+            "Authorization": token
+        }
+    });
+
+    document.getElementById("output").textContent =
+        JSON.stringify(await res.json(), null, 2);
+}
+
+async function loadUsers() {
+    const res = await fetch("https://my-editor-website.onrender.com/users", {
+        headers: {
+            "Authorization": token
+        }
+    });
+
+    document.getElementById("output").textContent =
+        JSON.stringify(await res.json(), null, 2);
+}
+</script>
+
 </body>
 </html>

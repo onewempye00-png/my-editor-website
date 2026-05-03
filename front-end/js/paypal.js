@@ -18,30 +18,38 @@ export function initPayPalButton(containerId = "paypal-button-container") {
         },
 
         onApprove: async (data) => {
+            try {
+                const subscriptionID = data.subscriptionID;
+                const email = localStorage.getItem("email");
 
-            const subscriptionID = data.subscriptionID;
-            const email = localStorage.getItem("email");
+                if (!email) {
+                    alert("Please enter email first");
+                    return;
+                }
 
-            if (!email) {
-                alert("Login required first");
-                return;
+                const res = await fetch(`${API_URL}/save-payment`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        email,
+                        subscriptionID
+                    })
+                });
+
+                if (!res.ok) {
+                    throw new Error("Payment save failed");
+                }
+
+                localStorage.setItem("paid", "true");
+
+                window.location.href = "dashboard.html";
+
+            } catch (err) {
+                console.error("PAYPAL ERROR:", err);
+                alert("Payment error. Try again.");
             }
-
-            // send to backend
-            await fetch(`${API_URL}/api/paypal/confirm`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    email,
-                    subscriptionID
-                })
-            });
-
-            localStorage.setItem("paid", "true");
-
-            window.location.href = "dashboard.html";
         }
 
     }).render(`#${containerId}`);

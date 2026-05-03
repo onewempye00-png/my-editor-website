@@ -1,42 +1,31 @@
 const express = require("express");
-const bcrypt = require("bcrypt");
-const User = require("../models/User");
-const { createToken } = require("../auth");
+const jwt = require("jsonwebtoken");
+const adminConfig = require("../adminConfig");
 
 const router = express.Router();
+const SECRET = "supersecretkey";
 
-// REGISTER
-router.post("/register", async (req, res) => {
+// ======================
+// ADMIN LOGIN (REAL)
+// ======================
+router.post("/admin-login", (req, res) => {
     const { email, password } = req.body;
 
-    const exists = await User.findOne({ email });
-    if (exists) return res.status(400).json({ error: "User exists" });
+    const admin = adminConfig.admins.find(
+        a => a.email === email && a.password === password
+    );
 
-    const hashed = await bcrypt.hash(password, 10);
+    if (!admin) {
+        return res.status(401).json({ message: "Invalid credentials" });
+    }
 
-    const user = await User.create({
-        email,
-        password: hashed
-    });
+    const token = jwt.sign(
+        { email, role: "admin" },
+        SECRET,
+        { expiresIn: "7d" }
+    );
 
-    const token = createToken(user);
-
-    res.json({ token, user });
-});
-
-// LOGIN
-router.post("/login", async (req, res) => {
-    const { email, password } = req.body;
-
-    const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ error: "No user" });
-
-    const match = await bcrypt.compare(password, user.password);
-    if (!match) return res.status(400).json({ error: "Wrong password" });
-
-    const token = createToken(user);
-
-    res.json({ token, user });
+    res.json({ token, email });
 });
 
 module.exports = router;

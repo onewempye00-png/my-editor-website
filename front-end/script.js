@@ -1,7 +1,7 @@
 const API_URL = "https://my-editor-website.onrender.com";
 
 // ======================
-// ⏳ 6 MONTH COUNTDOWN
+// ⏳ COUNTDOWN (6 MONTHS)
 // ======================
 const launchDate = new Date();
 launchDate.setMonth(launchDate.getMonth() + 6);
@@ -11,11 +11,11 @@ const countdown = document.getElementById("countdown");
 function updateCountdown() {
     if (!countdown) return;
 
-    const now = new Date().getTime();
+    const now = Date.now();
     const diff = launchDate.getTime() - now;
 
     if (diff <= 0) {
-        countdown.innerHTML = "🚀 LAUNCHED";
+        countdown.innerText = "🚀 LAUNCHED";
         return;
     }
 
@@ -24,15 +24,14 @@ function updateCountdown() {
     const minutes = Math.floor((diff / 1000 / 60) % 60);
     const seconds = Math.floor((diff / 1000) % 60);
 
-    countdown.innerHTML = `${days}d ${hours}h ${minutes}m ${seconds}s`;
+    countdown.innerText = `${days}d ${hours}h ${minutes}m ${seconds}s`;
 }
 
 setInterval(updateCountdown, 1000);
 updateCountdown();
 
-
 // ======================
-// 🚀 REGISTER
+// 🚀 WAITLIST REGISTER (FIXED)
 // ======================
 const form = document.getElementById("preRegForm");
 
@@ -40,56 +39,68 @@ if (form) {
     form.addEventListener("submit", async (e) => {
         e.preventDefault();
 
-        const email = document.querySelector("input").value;
+        const input = form.querySelector("input");
         const message = document.getElementById("message");
+        const email = input?.value?.trim();
 
-        const res = await fetch(`${API_URL}/register`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email })
-        });
+        if (!email) {
+            message.innerText = "Please enter email";
+            return;
+        }
 
-        const data = await res.json();
+        message.innerText = "Registering...";
 
-        if (res.ok) {
+        try {
+            const res = await fetch(`${API_URL}/register`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email })
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                message.innerText = data.message || "Error registering";
+                return;
+            }
+
             message.innerText = "Registered 🚀";
             localStorage.setItem("email", email);
-            loadSlots();
 
-            // 🔥 ADDED: auto check unlock after signup
+            loadSlots();
             init();
-        } else {
-            message.innerText = data.message;
+
+        } catch (err) {
+            console.error(err);
+            message.innerText = "Server error. Try again.";
         }
     });
 }
-
 
 // ======================
 // 🔥 EARLY ACCESS SLOTS
 // ======================
 async function loadSlots() {
     const slots = document.getElementById("slots");
+    const spots = document.getElementById("spots");
 
     try {
         const res = await fetch(`${API_URL}/stats`);
         const data = await res.json();
 
         const maxSlots = 300;
-        const remaining = Math.max(0, maxSlots - data.totalUsers);
+        const remaining = Math.max(0, maxSlots - (data.totalUsers || 0));
 
         if (slots) slots.innerText = remaining;
-
-        const spots = document.getElementById("spots");
         if (spots) spots.innerText = remaining;
 
     } catch {
         if (slots) slots.innerText = "300";
+        if (spots) spots.innerText = "300";
     }
 }
 
 loadSlots();
-
 
 // ======================
 // ✨ SCROLL ANIMATION
@@ -107,7 +118,6 @@ document.querySelectorAll(".card").forEach(card => {
     observer.observe(card);
 });
 
-
 // ======================
 // 🔐 ACCESS CHECK
 // ======================
@@ -115,18 +125,20 @@ async function checkAccess(email) {
     if (!email) return false;
 
     try {
-        const res = await fetch(`${API_URL}/check-subscription?email=${email}`); // 🔥 FIXED (was check-paid)
-        const data = await res.json();
+        const res = await fetch(
+            `${API_URL}/check-subscription?email=${email}`
+        );
 
+        const data = await res.json();
         return data.paid === true;
+
     } catch {
         return false;
     }
 }
 
-
 // ======================
-// 🚀 INIT
+// 🚀 INIT (EDITOR UNLOCK)
 // ======================
 async function init() {
     const email = localStorage.getItem("email");
@@ -155,12 +167,9 @@ async function init() {
 
 init();
 
-
 // ======================
-// 🔥 ADDED: AUTO PAYPAL UNLOCK HOOK (IMPORTANT)
+// 🔥 AUTO LOGIN HOOK
 // ======================
-// If PayPal redirects with email OR subscription success, this will instantly unlock
-
 const urlParams = new URLSearchParams(window.location.search);
 const paypalEmail = urlParams.get("email");
 

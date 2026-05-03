@@ -1,36 +1,20 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Dashboard</title>
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="admin.css">
 </head>
 <body>
 
-<h1>Welcome to your Dashboard</h1>
+<h1>Admin Dashboard</h1>
 
-<p id="userEmail"></p>
-<p id="plan"></p>
+<button onclick="loadStats()">Load Stats</button>
+<button onclick="loadUsers()">Load Users</button>
+<button onclick="logout()">Logout</button>
 
-<script>
-const token = localStorage.getItem("token");
+<pre id="output">Click a button to load data...</pre>
 
-async function loadDashboard() {
-    const res = await fetch("https://my-editor-website.onrender.com/users", {
-        headers: { Authorization: token }
-    });
-
-    if (!res.ok) {
-        document.body.innerHTML = "Not authorized";
-        return;
-    }
-
-    const users = await res.json();
-
-    document.getElementById("userEmail").innerText = "Logged in ✔";
-    document.getElementById("plan").innerText = "Premium Plan";
-}
-
-loadDashboard();
-</script>
+<script src="dashboard.js"></script>
 
 </body>
 </html>
