@@ -119,12 +119,14 @@ app.post("/register", async (req, res) => {
 
         res.json({ message: "Registered 🚀" });
 
-    } catch (err) {
-        console.log("REGISTER ERROR:", err);
-        res.status(500).json({ message: "Server error (Firebase issue)" });
-    }
-});
-
+} catch (err) {
+    console.log("🔥 REGISTER ERROR:", err);
+    res.status(500).json({
+        message: "Server error",
+        error: err.message
+    });
+}
+    
 // ======================
 // LOGIN
 // ======================
