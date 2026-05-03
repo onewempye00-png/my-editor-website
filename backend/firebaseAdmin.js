@@ -1,5 +1,6 @@
 require("dotenv").config();
 const admin = require("firebase-admin");
+console.log("🔥 FIREBASE LOADING...");
 
 function cleanPrivateKey(key) {
     if (!key) return null;
