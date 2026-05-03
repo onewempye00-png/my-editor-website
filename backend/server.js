@@ -22,10 +22,13 @@ const frontendPath = path.join(__dirname, "../front-end");
 // ======================
 // MIDDLEWARE
 // ======================
-app.use(cors());
-app.use(express.json());
-app.use(express.static(frontendPath));
+// ✅ API routes FIRST
+app.post("/register", ...)
+app.post("/login", ...)
+app.get("/stats", ...)
+app.get("/check-subscription", ...)
 
+});
 // ======================
 // API TEST ROUTE
 // ======================
@@ -35,18 +38,7 @@ app.get("/api", (req, res) => {
         message: "Backend running"
     });
 });
-
-// ======================
-// FRONTEND ROUTING FIX
-// ======================
-app.get("/", (req, res) => {
-    res.sendFile(path.join(frontendPath, "index.html"));
-});
-
-app.get("*", (req, res) => {
-    res.sendFile(path.join(frontendPath, "index.html"));
-});
-
+    
 // ======================
 // TOKENS FOLDER
 // ======================
@@ -199,7 +191,12 @@ app.get("/stats", async (req, res) => {
         res.json({ totalUsers: 0 });
     }
 });
-
+// ======================
+// FRONTEND ROUTING FIX
+// ======================
+app.get("*", (req, res) => {
+    res.sendFile(path.join(frontendPath, "index.html"));
+    
 // ======================
 // START SERVER
 // ======================
