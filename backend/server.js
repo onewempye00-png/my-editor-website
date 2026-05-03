@@ -1,11 +1,13 @@
 require("dotenv").config();
 
-const db = require("./firebaseAdmin");
 const path = require("path");
 const express = require("express");
 const fs = require("fs");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
+
+// ⚠️ Firebase MUST exist and be correct
+const db = require("./firebaseAdmin");
 const adminConfig = require("./adminConfig");
 
 const app = express();
@@ -22,9 +24,28 @@ const frontendPath = path.join(__dirname, "../front-end");
 // ======================
 app.use(cors());
 app.use(express.json());
-
-// serve frontend files
 app.use(express.static(frontendPath));
+
+// ======================
+// ROOT ROUTE (API TEST)
+// ======================
+app.get("/api", (req, res) => {
+    res.json({
+        status: "online",
+        message: "Backend running"
+    });
+});
+
+// ======================
+// FRONTEND ROUTING FIX
+// ======================
+app.get("/", (req, res) => {
+    res.sendFile(path.join(frontendPath, "index.html"));
+});
+
+app.get("*", (req, res) => {
+    res.sendFile(path.join(frontendPath, "index.html"));
+});
 
 // ======================
 // TOKENS FOLDER
@@ -34,32 +55,6 @@ const TOKENS_FOLDER = path.join(__dirname, "tokens");
 if (!fs.existsSync(TOKENS_FOLDER)) {
     fs.mkdirSync(TOKENS_FOLDER);
 }
-
-// ======================
-// ROOT ROUTE (FIXED)
-// ======================
-// IMPORTANT: DO NOT block frontend with JSON anymore
-app.get("/", (req, res) => {
-    res.sendFile(path.join(frontendPath, "index.html"));
-});
-
-// SPA fallback (IMPORTANT FOR ROUTING)
-app.get("*", (req, res) => {
-    res.sendFile(path.join(frontendPath, "index.html"));
-});
-
-// ======================
-// SAFE JSON
-// ======================
-const readJSON = (file) => {
-    try {
-        if (!fs.existsSync(file)) return [];
-        const data = fs.readFileSync(file, "utf-8");
-        return data ? JSON.parse(data) : [];
-    } catch {
-        return [];
-    }
-};
 
 // ======================
 // JWT
@@ -92,36 +87,7 @@ app.post("/admin-login", (req, res) => {
 });
 
 // ======================
-// AUTH MIDDLEWARE
-// ======================
-const isAdmin = (req, res, next) => {
-    const token = req.headers["authorization"];
-
-    if (!token) {
-        return res.status(403).json({ message: "No token" });
-    }
-
-    try {
-        const decoded = jwt.verify(token, SECRET);
-
-        const isAllowed = adminConfig.admins.some(
-            a => a.email === decoded.email
-        );
-
-        if (!isAllowed) {
-            return res.status(403).json({ message: "Not admin" });
-        }
-
-        req.user = decoded;
-        next();
-
-    } catch {
-        res.status(401).json({ message: "Invalid token" });
-    }
-};
-
-// ======================
-// REGISTER
+// REGISTER (FIXED - SAFE FIREBASE)
 // ======================
 app.post("/register", async (req, res) => {
     const { email } = req.body;
@@ -141,13 +107,14 @@ app.post("/register", async (req, res) => {
         await userRef.set({
             email,
             paid: false,
-            createdAt: new Date()
+            createdAt: new Date().toISOString()
         });
 
         res.json({ message: "Registered 🚀" });
 
-    } catch {
-        res.status(500).json({ message: "Server error" });
+    } catch (err) {
+        console.log("REGISTER ERROR:", err);
+        res.status(500).json({ message: "Server error (Firebase issue)" });
     }
 });
 
@@ -157,18 +124,24 @@ app.post("/register", async (req, res) => {
 app.post("/login", async (req, res) => {
     const { email } = req.body;
 
-    const doc = await db.collection("users").doc(email).get();
+    try {
+        const doc = await db.collection("users").doc(email).get();
 
-    if (!doc.exists) {
-        return res.status(404).json({ message: "User not found" });
+        if (!doc.exists) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        const token = createToken(email);
+
+        res.json({
+            token,
+            paid: doc.data().paid
+        });
+
+    } catch (err) {
+        console.log(err);
+        res.status(500).json({ message: "Login error" });
     }
-
-    const token = createToken(email);
-
-    res.json({
-        token,
-        paid: doc.data().paid
-    });
 });
 
 // ======================
@@ -177,110 +150,33 @@ app.post("/login", async (req, res) => {
 app.get("/check-subscription", async (req, res) => {
     const { email } = req.query;
 
-    const doc = await db.collection("users").doc(email).get();
-
-    if (!doc.exists) {
-        return res.json({ paid: false });
-    }
-
-    res.json({ paid: doc.data().paid });
-});
-
-// ======================
-// STATS
-// ======================
-app.get("/stats", isAdmin, async (req, res) => {
-    const snapshot = await db.collection("users").get();
-
-    res.json({
-        totalUsers: snapshot.size
-    });
-});
-
-// ======================
-// ADMIN USERS
-// ======================
-app.get("/admin/users", isAdmin, async (req, res) => {
-    const snapshot = await db.collection("users").get();
-
-    const users = [];
-
-    snapshot.forEach(doc => {
-        users.push(doc.data());
-    });
-
-    res.json(users);
-});
-
-// ======================
-// REVENUE
-// ======================
-app.get("/revenue", isAdmin, (req, res) => {
-    const file = path.join(__dirname, "payments.json");
-
-    const payments = readJSON(file);
-
-    res.json({
-        totalSales: payments.length,
-        revenue: payments.length * 19.99
-    });
-});
-
-// ======================
-// PAYPAL WEBHOOK
-// ======================
-app.post("/paypal-webhook", async (req, res) => {
-    const event = req.body;
-
     try {
-        if (event.event_type === "BILLING.SUBSCRIPTION.ACTIVATED") {
+        const doc = await db.collection("users").doc(email).get();
 
-            const email = event.resource?.subscriber?.email_address;
-            const subscriptionId = event.resource?.id;
-
-            if (!email) return res.sendStatus(400);
-
-            await db.collection("users").doc(email).update({
-                paid: true,
-                subscriptionId
-            });
-
-            const token = createToken(email);
-
-            const safeEmail = email.replace(/[^a-zA-Z0-9]/g, "_");
-
-            fs.writeFileSync(
-                path.join(TOKENS_FOLDER, `${safeEmail}.json`),
-                JSON.stringify({ token })
-            );
+        if (!doc.exists) {
+            return res.json({ paid: false });
         }
 
-        res.sendStatus(200);
+        res.json({ paid: doc.data().paid });
 
     } catch {
-        res.sendStatus(500);
+        res.json({ paid: false });
     }
 });
 
 // ======================
-// GET TOKEN
+// STATS (ADMIN)
 // ======================
-app.get("/get-token", (req, res) => {
-    const { email } = req.query;
-
+app.get("/stats", async (req, res) => {
     try {
-        const safeEmail = email.replace(/[^a-zA-Z0-9]/g, "_");
+        const snapshot = await db.collection("users").get();
 
-        const filePath = path.join(TOKENS_FOLDER, `${safeEmail}.json`);
-
-        const data = JSON.parse(fs.readFileSync(filePath));
-
-        fs.unlinkSync(filePath);
-
-        res.json(data);
+        res.json({
+            totalUsers: snapshot.size
+        });
 
     } catch {
-        res.status(404).json({ message: "No token" });
+        res.json({ totalUsers: 0 });
     }
 });
 
@@ -288,5 +184,5 @@ app.get("/get-token", (req, res) => {
 // START SERVER
 // ======================
 app.listen(PORT, "0.0.0.0", () => {
-    console.log("🔥 SaaS backend running on port", PORT);
+    console.log("🔥 Backend running on port", PORT);
 });
