@@ -226,6 +226,21 @@ app.get("/stats", async (req, res) => {
     }
 });
 
+
+app.get("/test-firebase", async (req, res) => {
+    try {
+        const snapshot = await db.collection("users").get();
+        res.json({
+            ok: true,
+            users: snapshot.size
+        });
+    } catch (err) {
+        console.log("🔥 FIREBASE FAIL:", err);
+        res.status(500).json({
+            error: err.message
+        });
+    }
+});
 // ======================
 // FRONTEND ROUTES
 // ======================
