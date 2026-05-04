@@ -8,6 +8,7 @@ const express = require("express");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
+const verificationCodes = {}; // { email: { code, expires } }
 
 const db = require("./firebaseAdmin");
 const adminConfig = require("./adminConfig");
@@ -118,6 +119,35 @@ app.post("/google-login", async (req, res) => {
     }
 });
 
+app.post("/send-code", async (req, res) => {
+    const { email } = req.body;
+
+    if (!email || !email.includes("@")) {
+        return res.status(400).json({ message: "Valid email required" });
+    }
+
+    try {
+        const code = Math.floor(100000 + Math.random() * 900000).toString();
+
+        verificationCodes[email] = {
+            code,
+            expires: Date.now() + 10 * 60 * 1000 // 10 minutes
+        };
+
+        await transporter.sendMail({
+            from: process.env.EMAIL_USER,
+            to: email,
+            subject: "Your Waitlist Code 🚀",
+            html: `<h2>Your code is: ${code}</h2><p>Expires in 10 minutes</p>`
+        });
+
+        res.json({ message: "Code sent 📧" });
+
+    } catch (err) {
+        console.log("EMAIL ERROR:", err);
+        res.status(500).json({ message: "Failed to send email" });
+    }
+});
 // ======================
 // ADMIN LOGIN
 // ======================
