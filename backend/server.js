@@ -5,7 +5,6 @@ const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const path = require("path");
 const express = require("express");
-const fs = require("fs");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
 
@@ -17,7 +16,7 @@ const PORT = process.env.PORT || 5000;
 const SECRET = "supersecretkey";
 
 // ======================
-// DEBUG
+// DEBUG ENV
 // ======================
 console.log("🔥 ENV CHECK:", {
     project: process.env.FIREBASE_PROJECT_ID,
@@ -28,13 +27,6 @@ console.log("🔥 ENV CHECK:", {
 // ======================
 // MIDDLEWARE
 // ======================
-app.use((err, req, res, next) => {
-    console.log("🔥 GLOBAL ERROR:", err);
-    res.status(500).json({
-        message: "Server crashed",
-        error: err.message
-    });
-});
 app.use(cors());
 app.use(express.json());
 
@@ -45,7 +37,7 @@ const frontendPath = path.join(__dirname, "../front-end");
 app.use(express.static(frontendPath));
 
 // ======================
-// TEST
+// TEST API
 // ======================
 app.get("/api", (req, res) => {
     res.json({ status: "online" });
@@ -72,7 +64,7 @@ const createToken = (email) => {
 };
 
 // ======================
-// GOOGLE LOGIN (FIXED)
+// GOOGLE LOGIN (AUTO REGISTER)
 // ======================
 app.post("/google-login", async (req, res) => {
     try {
@@ -89,6 +81,18 @@ app.post("/google-login", async (req, res) => {
 
         const payload = ticket.getPayload();
         const email = payload.email;
+
+        // 🔥 AUTO CREATE USER IF NOT EXISTS
+        const userRef = db.collection("users").doc(email);
+        const doc = await userRef.get();
+
+        if (!doc.exists) {
+            await userRef.set({
+                email,
+                paid: false,
+                createdAt: new Date().toISOString()
+            });
+        }
 
         const appToken = createToken(email);
 
@@ -130,21 +134,21 @@ app.post("/admin-login", (req, res) => {
 });
 
 // ======================
-// REGISTER (FIXED SAFE)
+// REGISTER (WAITLIST - FREE)
 // ======================
 app.post("/register", async (req, res) => {
-    const { email } = req.body;
-
-    if (!email) {
-        return res.status(400).json({ message: "Email required" });
-    }
-
     try {
+        const { email } = req.body;
+
+        if (!email || !email.includes("@")) {
+            return res.status(400).json({ message: "Valid email required" });
+        }
+
         const userRef = db.collection("users").doc(email);
         const doc = await userRef.get();
 
         if (doc.exists) {
-            return res.status(400).json({ message: "Already registered" });
+            return res.status(200).json({ message: "Already registered" });
         }
 
         await userRef.set({
@@ -157,7 +161,6 @@ app.post("/register", async (req, res) => {
 
     } catch (err) {
         console.log("🔥 REGISTER ERROR:", err);
-
         res.status(500).json({
             message: "Firebase error",
             error: err.message
@@ -169,9 +172,9 @@ app.post("/register", async (req, res) => {
 // LOGIN
 // ======================
 app.post("/login", async (req, res) => {
-    const { email } = req.body;
-
     try {
+        const { email } = req.body;
+
         const doc = await db.collection("users").doc(email).get();
 
         if (!doc.exists) {
@@ -186,6 +189,7 @@ app.post("/login", async (req, res) => {
         });
 
     } catch (err) {
+        console.log("🔥 LOGIN ERROR:", err);
         res.status(500).json({ message: err.message });
     }
 });
@@ -226,23 +230,8 @@ app.get("/stats", async (req, res) => {
     }
 });
 
-
-app.get("/test-firebase", async (req, res) => {
-    try {
-        const snapshot = await db.collection("users").get();
-        res.json({
-            ok: true,
-            users: snapshot.size
-        });
-    } catch (err) {
-        console.log("🔥 FIREBASE FAIL:", err);
-        res.status(500).json({
-            error: err.message
-        });
-    }
-});
 // ======================
-// FRONTEND ROUTES
+// FRONTEND ROUTES (MUST BE LAST)
 // ======================
 app.get("/", (req, res) => {
     res.sendFile(path.join(frontendPath, "index.html"));
@@ -250,6 +239,17 @@ app.get("/", (req, res) => {
 
 app.get("*", (req, res) => {
     res.sendFile(path.join(frontendPath, "index.html"));
+});
+
+// ======================
+// GLOBAL ERROR HANDLER (LAST)
+// ======================
+app.use((err, req, res, next) => {
+    console.log("🔥 GLOBAL ERROR:", err);
+    res.status(500).json({
+        message: "Server crashed",
+        error: err.message
+    });
 });
 
 // ======================
