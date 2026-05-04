@@ -7,6 +7,7 @@ const path = require("path");
 const express = require("express");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
+const nodemailer = require("nodemailer");
 
 const db = require("./firebaseAdmin");
 const adminConfig = require("./adminConfig");
