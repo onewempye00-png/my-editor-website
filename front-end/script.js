@@ -114,7 +114,22 @@ function handleGoogleLogin(response) {
         alert("Google login failed");
     });
 }
+window.handleGoogleLogin = function(response) {
+    const token = response.credential;
 
+    fetch(`${API_URL}/google-login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token })
+    })
+    .then(res => res.json())
+    .then(data => {
+        localStorage.setItem("token", data.token);
+        localStorage.setItem("email", data.email);
+        init();
+    })
+    .catch(console.error);
+};
 // ======================
 // COUNTDOWN
 // ======================
