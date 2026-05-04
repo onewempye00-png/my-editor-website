@@ -13,6 +13,12 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const SECRET = "supersecretkey";
 
+console.log("🔥 FIREBASE CHECK:", {
+    project: process.env.FIREBASE_PROJECT_ID,
+    email: process.env.FIREBASE_CLIENT_EMAIL,
+    keyLength: process.env.FIREBASE_PRIVATE_KEY?.length
+});
+
 // ======================
 // FRONTEND PATH
 // ======================
