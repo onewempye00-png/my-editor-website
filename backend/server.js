@@ -49,6 +49,31 @@ if (!fs.existsSync(TOKENS_FOLDER)) {
     fs.mkdirSync(TOKENS_FOLDER);
 }
 
+app.post("/google-login", async (req, res) => {
+    const { token } = req.body;
+
+    try {
+        const ticket = await googleClient.verifyIdToken({
+            idToken: token,
+            audience: process.env.GOOGLE_CLIENT_ID
+        });
+
+        const payload = ticket.getPayload();
+        const email = payload.email;
+
+        // 🔥 Create YOUR app token
+        const appToken = jwt.sign({ email }, SECRET, { expiresIn: "7d" });
+
+        res.json({
+            token: appToken,
+            email
+        });
+
+    } catch (err) {
+        console.log("🔥 GOOGLE LOGIN ERROR:", err);
+        res.status(401).json({ message: "Invalid Google token" });
+    }
+});
 // ======================
 // JWT
 // ======================
