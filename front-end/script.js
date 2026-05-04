@@ -154,6 +154,61 @@ async function checkAccess(email) {
     }
 }
 
+form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const email = form.querySelector("input").value.trim();
+    const message = document.getElementById("message");
+
+    message.innerText = "Sending code...";
+
+    const res = await fetch(`${API_URL}/send-code`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+        message.innerText = data.message;
+        return;
+    }
+
+    message.innerText = "Check your email 📧";
+
+    // show code input
+    document.getElementById("codeSection").style.display = "block";
+    localStorage.setItem("email", email);
+});
+
+async function verifyCode() {
+    const email = localStorage.getItem("email");
+    const code = document.getElementById("codeInput").value.trim();
+    const message = document.getElementById("message");
+
+    message.innerText = "Verifying...";
+
+    const res = await fetch(`${API_URL}/verify-code`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, code })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+        message.innerText = data.message;
+        return;
+    }
+
+    message.innerText = "You're in 🚀";
+
+    localStorage.setItem("token", data.token);
+
+    init();
+}
+
 // ======================
 // 🚀 INIT (EDITOR UNLOCK)
 // ======================
