@@ -8,7 +8,6 @@ const express = require("express");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
-const verificationCodes = {}; // { email: { code, expires } }
 
 const db = require("./firebaseAdmin");
 const adminConfig = require("./adminConfig");
@@ -17,6 +16,9 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const SECRET = "supersecretkey";
 
+// ======================
+// EMAIL
+// ======================
 const transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
@@ -24,13 +26,19 @@ const transporter = nodemailer.createTransport({
         pass: process.env.EMAIL_PASS
     }
 });
+
 // ======================
-// DEBUG ENV
+// TEMP CODE STORAGE
+// ======================
+const verificationCodes = {}; // { email: { code, expires } }
+
+// ======================
+// DEBUG
 // ======================
 console.log("🔥 ENV CHECK:", {
     project: process.env.FIREBASE_PROJECT_ID,
     email: process.env.FIREBASE_CLIENT_EMAIL,
-    key: process.env.FIREBASE_PRIVATE_KEY ? "OK" : "MISSING"
+    dbURL: process.env.FIREBASE_DATABASE_URL ? "OK" : "MISSING"
 });
 
 // ======================
@@ -46,6 +54,15 @@ const frontendPath = path.join(__dirname, "../front-end");
 app.use(express.static(frontendPath));
 
 // ======================
+// HELPERS
+// ======================
+const createToken = (email) => {
+    return jwt.sign({ email }, SECRET, { expiresIn: "7d" });
+};
+
+const safeEmail = (email) => email.replace(/\./g, "_");
+
+// ======================
 // TEST API
 // ======================
 app.get("/api", (req, res) => {
@@ -53,24 +70,23 @@ app.get("/api", (req, res) => {
 });
 
 // ======================
-// FIREBASE TEST
+// FIREBASE TEST (REALTIME)
 // ======================
 app.get("/test-firebase", async (req, res) => {
     try {
-        const snapshot = await db.collection("users").get();
-        res.json({ success: true, count: snapshot.size });
+        const snapshot = await db.ref("users").get();
+        const users = snapshot.val() || {};
+
+        res.json({
+            success: true,
+            count: Object.keys(users).length
+        });
+
     } catch (err) {
         console.log("🔥 FIREBASE ERROR:", err);
         res.status(500).json({ error: err.message });
     }
 });
-
-// ======================
-// TOKEN HELPER
-// ======================
-const createToken = (email) => {
-    return jwt.sign({ email }, SECRET, { expiresIn: "7d" });
-};
 
 // ======================
 // GOOGLE LOGIN (AUTO REGISTER)
@@ -91,11 +107,10 @@ app.post("/google-login", async (req, res) => {
         const payload = ticket.getPayload();
         const email = payload.email;
 
-        // 🔥 AUTO CREATE USER IF NOT EXISTS
-        const userRef = db.collection("users").doc(email);
-        const doc = await userRef.get();
+        const userRef = db.ref("users/" + safeEmail(email));
+        const snapshot = await userRef.get();
 
-        if (!doc.exists) {
+        if (!snapshot.exists()) {
             await userRef.set({
                 email,
                 paid: false,
@@ -119,6 +134,9 @@ app.post("/google-login", async (req, res) => {
     }
 });
 
+// ======================
+// SEND VERIFICATION CODE
+// ======================
 app.post("/send-code", async (req, res) => {
     const { email } = req.body;
 
@@ -131,14 +149,14 @@ app.post("/send-code", async (req, res) => {
 
         verificationCodes[email] = {
             code,
-            expires: Date.now() + 10 * 60 * 1000 // 10 minutes
+            expires: Date.now() + 10 * 60 * 1000
         };
 
         await transporter.sendMail({
             from: process.env.EMAIL_USER,
             to: email,
             subject: "Your Waitlist Code 🚀",
-            html: `<h2>Your code is: ${code}</h2><p>Expires in 10 minutes</p>`
+            html: `<h2>Your code: ${code}</h2><p>Expires in 10 minutes</p>`
         });
 
         res.json({ message: "Code sent 📧" });
@@ -148,64 +166,10 @@ app.post("/send-code", async (req, res) => {
         res.status(500).json({ message: "Failed to send email" });
     }
 });
-// ======================
-// ADMIN LOGIN
-// ======================
-app.post("/admin-login", (req, res) => {
-    const { email, password } = req.body;
-
-    const admin = adminConfig.admins.find(
-        a => a.email === email && a.password === password
-    );
-
-    if (!admin) {
-        return res.status(401).json({ message: "Invalid admin login" });
-    }
-
-    const token = jwt.sign(
-        { email, role: "admin" },
-        SECRET,
-        { expiresIn: "7d" }
-    );
-
-    res.json({ token });
-});
 
 // ======================
-// REGISTER (WAITLIST - FREE)
+// VERIFY CODE + REGISTER
 // ======================
-app.post("/register", async (req, res) => {
-    try {
-        const { email } = req.body;
-
-        if (!email || !email.includes("@")) {
-            return res.status(400).json({ message: "Valid email required" });
-        }
-
-        const userRef = db.collection("users").doc(email);
-        const doc = await userRef.get();
-
-        if (doc.exists) {
-            return res.status(200).json({ message: "Already registered" });
-        }
-
-        await userRef.set({
-            email,
-            paid: false,
-            createdAt: new Date().toISOString()
-        });
-
-        res.json({ message: "Registered 🚀" });
-
-    } catch (err) {
-        console.log("🔥 REGISTER ERROR:", err);
-        res.status(500).json({
-            message: "Firebase error",
-            error: err.message
-        });
-    }
-});
-
 app.post("/verify-code", async (req, res) => {
     const { email, code } = req.body;
 
@@ -229,11 +193,10 @@ app.post("/verify-code", async (req, res) => {
     }
 
     try {
-        // ✅ create user AFTER verification
-        const userRef = db.collection("users").doc(email);
-        const doc = await userRef.get();
+        const userRef = db.ref("users/" + safeEmail(email));
+        const snapshot = await userRef.get();
 
-        if (!doc.exists) {
+        if (!snapshot.exists()) {
             await userRef.set({
                 email,
                 paid: false,
@@ -255,6 +218,7 @@ app.post("/verify-code", async (req, res) => {
         res.status(500).json({ message: "Server error" });
     }
 });
+
 // ======================
 // LOGIN
 // ======================
@@ -262,17 +226,18 @@ app.post("/login", async (req, res) => {
     try {
         const { email } = req.body;
 
-        const doc = await db.collection("users").doc(email).get();
+        const snapshot = await db.ref("users/" + safeEmail(email)).get();
 
-        if (!doc.exists) {
+        if (!snapshot.exists()) {
             return res.status(404).json({ message: "User not found" });
         }
 
+        const data = snapshot.val();
         const token = createToken(email);
 
         res.json({
             token,
-            paid: doc.data().paid
+            paid: data.paid
         });
 
     } catch (err) {
@@ -288,13 +253,13 @@ app.get("/check-subscription", async (req, res) => {
     try {
         const { email } = req.query;
 
-        const doc = await db.collection("users").doc(email).get();
+        const snapshot = await db.ref("users/" + safeEmail(email)).get();
 
-        if (!doc.exists) {
+        if (!snapshot.exists()) {
             return res.json({ paid: false });
         }
 
-        res.json({ paid: doc.data().paid });
+        res.json({ paid: snapshot.val().paid });
 
     } catch {
         res.json({ paid: false });
@@ -306,10 +271,11 @@ app.get("/check-subscription", async (req, res) => {
 // ======================
 app.get("/stats", async (req, res) => {
     try {
-        const snapshot = await db.collection("users").get();
+        const snapshot = await db.ref("users").get();
+        const users = snapshot.val() || {};
 
         res.json({
-            totalUsers: snapshot.size
+            totalUsers: Object.keys(users).length
         });
 
     } catch {
@@ -318,7 +284,7 @@ app.get("/stats", async (req, res) => {
 });
 
 // ======================
-// FRONTEND ROUTES (MUST BE LAST)
+// FRONTEND ROUTES
 // ======================
 app.get("/", (req, res) => {
     res.sendFile(path.join(frontendPath, "index.html"));
@@ -329,7 +295,7 @@ app.get("*", (req, res) => {
 });
 
 // ======================
-// GLOBAL ERROR HANDLER (LAST)
+// GLOBAL ERROR
 // ======================
 app.use((err, req, res, next) => {
     console.log("🔥 GLOBAL ERROR:", err);
