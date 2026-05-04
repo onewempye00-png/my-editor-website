@@ -93,27 +93,6 @@ async function verifyCode() {
 // ======================
 // GOOGLE LOGIN
 // ======================
-function handleGoogleLogin(response) {
-    const token = response.credential;
-
-    safeFetch(`${API_URL}/google-login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token })
-    })
-    .then(data => {
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("email", data.email);
-
-        alert("Logged in 🚀");
-
-        init();
-    })
-    .catch(err => {
-        console.error(err);
-        alert("Google login failed");
-    });
-}
 window.handleGoogleLogin = function(response) {
     const token = response.credential;
 
@@ -130,6 +109,7 @@ window.handleGoogleLogin = function(response) {
     })
     .catch(console.error);
 };
+
 // ======================
 // COUNTDOWN
 // ======================
