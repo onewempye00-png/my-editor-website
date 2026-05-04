@@ -28,6 +28,13 @@ console.log("🔥 ENV CHECK:", {
 // ======================
 // MIDDLEWARE
 // ======================
+app.use((err, req, res, next) => {
+    console.log("🔥 GLOBAL ERROR:", err);
+    res.status(500).json({
+        message: "Server crashed",
+        error: err.message
+    });
+});
 app.use(cors());
 app.use(express.json());
 
