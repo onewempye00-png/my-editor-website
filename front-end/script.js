@@ -195,3 +195,33 @@ if (paypalEmail) {
     init();
     loadSlots();
 }
+
+function handleGoogleLogin(response) {
+    const googleToken = response.credential;
+
+    fetch(`${API_URL}/google-login`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ token: googleToken })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (!data.token) {
+            alert("Google login failed");
+            return;
+        }
+
+        localStorage.setItem("token", data.token);
+        localStorage.setItem("email", data.email);
+
+        alert("Logged in with Google 🚀");
+
+        init(); // your existing function
+    })
+    .catch(err => {
+        console.error(err);
+        alert("Google login error");
+    });
+}
