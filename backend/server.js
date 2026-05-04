@@ -1,6 +1,6 @@
 require("dotenv").config();
-const { OAuth2Client } = require("google-auth-library");
 
+const { OAuth2Client } = require("google-auth-library");
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const path = require("path");
@@ -16,6 +16,9 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const SECRET = "supersecretkey";
 
+// ======================
+// DEBUG ENV
+// ======================
 console.log("🔥 FIREBASE CHECK:", {
     project: process.env.FIREBASE_PROJECT_ID,
     email: process.env.FIREBASE_CLIENT_EMAIL,
@@ -42,6 +45,19 @@ app.get("/api", (req, res) => {
 });
 
 // ======================
+// FIREBASE TEST
+// ======================
+app.get("/test-firebase", async (req, res) => {
+    try {
+        const snapshot = await db.collection("users").get();
+        res.json({ success: true, count: snapshot.size });
+    } catch (err) {
+        console.log("🔥 FIREBASE ERROR:", err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ======================
 // TOKENS FOLDER
 // ======================
 const TOKENS_FOLDER = path.join(__dirname, "tokens");
@@ -49,6 +65,16 @@ if (!fs.existsSync(TOKENS_FOLDER)) {
     fs.mkdirSync(TOKENS_FOLDER);
 }
 
+// ======================
+// JWT
+// ======================
+const createToken = (email) => {
+    return jwt.sign({ email }, SECRET, { expiresIn: "7d" });
+};
+
+// ======================
+// GOOGLE LOGIN
+// ======================
 app.post("/google-login", async (req, res) => {
     const { token } = req.body;
 
@@ -61,8 +87,7 @@ app.post("/google-login", async (req, res) => {
         const payload = ticket.getPayload();
         const email = payload.email;
 
-        // 🔥 Create YOUR app token
-        const appToken = jwt.sign({ email }, SECRET, { expiresIn: "7d" });
+        const appToken = createToken(email);
 
         res.json({
             token: appToken,
@@ -74,12 +99,6 @@ app.post("/google-login", async (req, res) => {
         res.status(401).json({ message: "Invalid Google token" });
     }
 });
-// ======================
-// JWT
-// ======================
-const createToken = (email) => {
-    return jwt.sign({ email }, SECRET, { expiresIn: "7d" });
-};
 
 // ======================
 // ADMIN LOGIN
@@ -105,7 +124,7 @@ app.post("/admin-login", (req, res) => {
 });
 
 // ======================
-// REGISTER
+// REGISTER (FIXED)
 // ======================
 app.post("/register", async (req, res) => {
     const { email } = req.body;
@@ -115,23 +134,32 @@ app.post("/register", async (req, res) => {
     }
 
     try {
-        const doc = await db.collection("users").doc(email).get();
+        console.log("📩 Register:", email);
+
+        const userRef = db.collection("users").doc(email);
+        const doc = await userRef.get();
 
         if (doc.exists) {
             return res.status(400).json({ message: "Already registered" });
         }
 
-        await db.collection("users").doc(email).set({
+        await userRef.set({
             email,
             paid: false,
             createdAt: new Date().toISOString()
         });
 
+        console.log("✅ Saved:", email);
+
         res.json({ message: "Registered 🚀" });
 
     } catch (err) {
-        console.log("REGISTER ERROR:", err);
-        res.status(500).json({ message: err.message });
+        console.log("🔥 REGISTER ERROR:", err);
+
+        res.status(500).json({
+            message: "Server error (Firebase issue)",
+            error: err.message
+        });
     }
 });
 
@@ -156,8 +184,12 @@ app.post("/login", async (req, res) => {
         });
 
     } catch (err) {
-        console.log("LOGIN ERROR:", err);
-        res.status(500).json({ message: err.message });
+        console.log("🔥 LOGIN ERROR:", err);
+
+        res.status(500).json({
+            message: "Login error",
+            error: err.message
+        });
     }
 });
 
@@ -176,7 +208,7 @@ app.get("/check-subscription", async (req, res) => {
 
         res.json({ paid: doc.data().paid });
 
-    } catch (err) {
+    } catch {
         res.json({ paid: false });
     }
 });
@@ -198,7 +230,7 @@ app.get("/stats", async (req, res) => {
 });
 
 // ======================
-// FRONTEND ROUTES (VERY LAST)
+// FRONTEND ROUTES (LAST)
 // ======================
 app.get("/", (req, res) => {
     res.sendFile(path.join(frontendPath, "index.html"));
