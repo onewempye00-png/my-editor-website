@@ -41,6 +41,8 @@ updateCountdown();
 // ======================
 // 🚀 WAITLIST REGISTER (FIXED)
 // ======================
+const form = document.getElementById("preRegForm");
+
 if (form) {
     form.addEventListener("submit", async (e) => {
         e.preventDefault();
