@@ -206,6 +206,55 @@ app.post("/register", async (req, res) => {
     }
 });
 
+app.post("/verify-code", async (req, res) => {
+    const { email, code } = req.body;
+
+    if (!email || !code) {
+        return res.status(400).json({ message: "Missing data" });
+    }
+
+    const record = verificationCodes[email];
+
+    if (!record) {
+        return res.status(400).json({ message: "No code found" });
+    }
+
+    if (Date.now() > record.expires) {
+        delete verificationCodes[email];
+        return res.status(400).json({ message: "Code expired" });
+    }
+
+    if (record.code !== code) {
+        return res.status(400).json({ message: "Invalid code" });
+    }
+
+    try {
+        // ✅ create user AFTER verification
+        const userRef = db.collection("users").doc(email);
+        const doc = await userRef.get();
+
+        if (!doc.exists) {
+            await userRef.set({
+                email,
+                paid: false,
+                createdAt: new Date().toISOString()
+            });
+        }
+
+        delete verificationCodes[email];
+
+        const token = createToken(email);
+
+        res.json({
+            message: "Verified ✅",
+            token
+        });
+
+    } catch (err) {
+        console.log("VERIFY ERROR:", err);
+        res.status(500).json({ message: "Server error" });
+    }
+});
 // ======================
 // LOGIN
 // ======================
