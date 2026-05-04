@@ -17,6 +17,15 @@ const PORT = process.env.PORT || 5000;
 const SECRET = "supersecretkey";
 
 // ======================
+// MIDDLEWARE
+// ======================
+app.use((req, res, next) => {
+    res.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
+    res.setHeader("Cross-Origin-Embedder-Policy", "unsafe-none");
+    next();
+});
+
+// ======================
 // EMAIL SETUP
 // ======================
 const transporter = nodemailer.createTransport({
