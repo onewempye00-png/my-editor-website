@@ -93,7 +93,7 @@ button:hover {
     border-radius: 12px;
     width: 220px;
     text-align: center;
-    transition: all 0.4s ease;
+    transition: all 0.4s ease-in;
 }
 
 /* CARD HOVER */
@@ -118,9 +118,9 @@ button:hover {
 
 /* FADE ANIMATION (FIXED) */
 .fade-in {
-    opacity: 0;
+    opacity: 3;
     transform: translateY(40px);
-    transition: all 0.6s ease;
+    transition: all 0.6s ease-in;
 }
 
 .fade-in.show {
@@ -128,14 +128,9 @@ button:hover {
     transform: translateY(0);
 }
 
-<<<<<<< HEAD
+
+
 /* LOADER */
-=======
-<<<<<<< HEAD
-=======
-/* LOADER */
->>>>>>> f0bf249 (fix duplicate PORT error)
->>>>>>> 8dff081 (fix duplicate PORT error)
 #loader {
   position: fixed;
   top: 0;
@@ -151,18 +146,10 @@ button:hover {
   font-size: 20px;
 }
 
-<<<<<<< HEAD
-/* SECTION FADE SYSTEM */
-=======
-<<<<<<< HEAD
-=======
-/* SECTION FADE SYSTEM */
->>>>>>> f0bf249 (fix duplicate PORT error)
->>>>>>> 8dff081 (fix duplicate PORT error)
 .fade-section {
   opacity: 0;
   transform: translateY(20px);
-  transition: all 0.6s ease;
+  transition: all 0.6s ease-in;
   display: none;
 }
 
@@ -170,12 +157,5 @@ button:hover {
   display: block;
   opacity: 1;
   transform: translateY(0);
-<<<<<<< HEAD
+
 }
-=======
-<<<<<<< HEAD
-}
-=======
-}
->>>>>>> f0bf249 (fix duplicate PORT error)
->>>>>>> 8dff081 (fix duplicate PORT error)
