@@ -1,15 +1,122 @@
 const API_URL = "https://my-editor-website.onrender.com";
 
-async function testBackend() {
-    const res = await fetch(`${API_URL}/`);
-    const data = await res.json();
-    console.log(data);
+// ======================
+// SAFE FETCH HELPER
+// ======================
+async function safeFetch(url, options = {}) {
+    const res = await fetch(url, options);
+
+    let data;
+    try {
+        data = await res.json();
+    } catch {
+        const text = await res.text();
+        console.error("❌ Non-JSON response:", text);
+        throw new Error("Server returned invalid JSON");
+    }
+
+    if (!res.ok) {
+        throw new Error(data.message || "Request failed");
+    }
+
+    return data;
 }
 
-testBackend();
+// ======================
+// REGISTER → SEND CODE
+// ======================
+const form = document.getElementById("preRegForm");
+
+if (form) {
+    form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const email = form.querySelector("input").value.trim();
+        const message = document.getElementById("message");
+
+        if (!email) {
+            message.innerText = "Enter email";
+            return;
+        }
+
+        try {
+            message.innerText = "Sending code...";
+
+            await safeFetch(`${API_URL}/send-code`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email })
+            });
+
+            message.innerText = "Check your email 📧";
+
+            localStorage.setItem("email", email);
+
+            document.getElementById("codeSection").style.display = "block";
+
+        } catch (err) {
+            console.error(err);
+            message.innerText = err.message;
+        }
+    });
+}
 
 // ======================
-// ⏳ COUNTDOWN (6 MONTHS)
+// VERIFY CODE
+// ======================
+async function verifyCode() {
+    const email = localStorage.getItem("email");
+    const code = document.getElementById("codeInput").value.trim();
+    const message = document.getElementById("message");
+
+    try {
+        message.innerText = "Verifying...";
+
+        const data = await safeFetch(`${API_URL}/verify-code`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, code })
+        });
+
+        localStorage.setItem("token", data.token);
+
+        message.innerText = "Verified 🚀";
+
+        init();
+
+    } catch (err) {
+        console.error(err);
+        message.innerText = err.message;
+    }
+}
+
+// ======================
+// GOOGLE LOGIN
+// ======================
+function handleGoogleLogin(response) {
+    const token = response.credential;
+
+    safeFetch(`${API_URL}/google-login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token })
+    })
+    .then(data => {
+        localStorage.setItem("token", data.token);
+        localStorage.setItem("email", data.email);
+
+        alert("Logged in 🚀");
+
+        init();
+    })
+    .catch(err => {
+        console.error(err);
+        alert("Google login failed");
+    });
+}
+
+// ======================
+// COUNTDOWN
 // ======================
 const launchDate = new Date();
 launchDate.setMonth(launchDate.getMonth() + 6);
@@ -19,198 +126,26 @@ const countdown = document.getElementById("countdown");
 function updateCountdown() {
     if (!countdown) return;
 
-    const now = Date.now();
-    const diff = launchDate.getTime() - now;
+    const diff = launchDate - Date.now();
 
     if (diff <= 0) {
-        countdown.innerText = "🚀 LAUNCHED";
+        countdown.innerText = "🚀 LIVE";
         return;
     }
 
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
-    const minutes = Math.floor((diff / 1000 / 60) % 60);
-    const seconds = Math.floor((diff / 1000) % 60);
+    const d = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const h = Math.floor((diff / (1000 * 60 * 60)) % 24);
+    const m = Math.floor((diff / (1000 * 60)) % 60);
+    const s = Math.floor((diff / 1000) % 60);
 
-    countdown.innerText = `${days}d ${hours}h ${minutes}m ${seconds}s`;
+    countdown.innerText = `${d}d ${h}h ${m}m ${s}s`;
 }
 
 setInterval(updateCountdown, 1000);
 updateCountdown();
 
 // ======================
-// 🚀 WAITLIST REGISTER (FIXED)
-// ======================
-const form = document.getElementById("preRegForm");
-
-if (form) {
-    form.addEventListener("submit", async (e) => {
-        e.preventDefault();
-
-        const input = form.querySelector("input");
-        const message = document.getElementById("message");
-        const email = input?.value?.trim();
-
-        if (!email) {
-            message.innerText = "Please enter email";
-            return;
-        }
-
-        message.innerText = "Registering...";
-
-        try {
-            const res = await fetch(`${API_URL}/register`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email })
-            });
-
-            // 🔥 IMPORTANT FIX
-            let data;
-            try {
-                data = await res.json();
-            } catch {
-                const text = await res.text();
-                console.error("🔥 Server returned HTML:", text);
-                message.innerText = "Server error (not JSON)";
-                return;
-            }
-
-            if (!res.ok) {
-                message.innerText = data.message || "Error registering";
-                console.error("❌ API error:", data);
-                return;
-            }
-
-            message.innerText = "Registered 🚀";
-            localStorage.setItem("email", email);
-
-            loadSlots();
-            init();
-
-        } catch (err) {
-            console.error("🔥 FETCH ERROR:", err);
-            message.innerText = "Server error. Try again.";
-        }
-    });
-}
-// ======================
-// 🔥 EARLY ACCESS SLOTS
-// ======================
-async function loadSlots() {
-    const slots = document.getElementById("slots");
-    const spots = document.getElementById("spots");
-
-    try {
-        const res = await fetch(`${API_URL}/stats`);
-        const data = await res.json();
-
-        const maxSlots = 300;
-        const remaining = Math.max(0, maxSlots - (data.totalUsers || 0));
-
-        if (slots) slots.innerText = remaining;
-        if (spots) spots.innerText = remaining;
-
-    } catch {
-        if (slots) slots.innerText = "300";
-        if (spots) spots.innerText = "300";
-    }
-}
-
-loadSlots();
-
-// ======================
-// ✨ SCROLL ANIMATION
-// ======================
-const observer = new IntersectionObserver(entries => {
-    entries.forEach(entry => {
-        if (entry.isIntersecting) {
-            entry.target.classList.add("show");
-        }
-    });
-});
-
-document.querySelectorAll(".card").forEach(card => {
-    card.classList.add("fade-in");
-    observer.observe(card);
-});
-
-// ======================
-// 🔐 ACCESS CHECK
-// ======================
-async function checkAccess(email) {
-    if (!email) return false;
-
-    try {
-        const res = await fetch(
-            `${API_URL}/check-subscription?email=${email}`
-        );
-
-        const data = await res.json();
-        return data.paid === true;
-
-    } catch {
-        return false;
-    }
-}
-
-form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-
-    const email = form.querySelector("input").value.trim();
-    const message = document.getElementById("message");
-
-    message.innerText = "Sending code...";
-
-    const res = await fetch(`${API_URL}/send-code`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email })
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-        message.innerText = data.message;
-        return;
-    }
-
-    message.innerText = "Check your email 📧";
-
-    // show code input
-    document.getElementById("codeSection").style.display = "block";
-    localStorage.setItem("email", email);
-});
-
-async function verifyCode() {
-    const email = localStorage.getItem("email");
-    const code = document.getElementById("codeInput").value.trim();
-    const message = document.getElementById("message");
-
-    message.innerText = "Verifying...";
-
-    const res = await fetch(`${API_URL}/verify-code`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, code })
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-        message.innerText = data.message;
-        return;
-    }
-
-    message.innerText = "You're in 🚀";
-
-    localStorage.setItem("token", data.token);
-
-    init();
-}
-
-// ======================
-// 🚀 INIT (EDITOR UNLOCK)
+// INIT SYSTEM
 // ======================
 async function init() {
     const email = localStorage.getItem("email");
@@ -226,57 +161,8 @@ async function init() {
         return;
     }
 
-    const paid = await checkAccess(email);
-
-    if (paid) {
-        editor.style.display = "block";
-        paywall.style.display = "none";
-    } else {
-        editor.style.display = "none";
-        paywall.style.display = "block";
-    }
+    editor.style.display = "block";
+    paywall.style.display = "none";
 }
 
 init();
-
-// ======================
-// 🔥 AUTO LOGIN HOOK
-// ======================
-const urlParams = new URLSearchParams(window.location.search);
-const paypalEmail = urlParams.get("email");
-
-if (paypalEmail) {
-    localStorage.setItem("email", paypalEmail);
-    init();
-    loadSlots();
-}
-
-function handleGoogleLogin(response) {
-    const googleToken = response.credential;
-
-    fetch(`${API_URL}/google-login`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ token: googleToken })
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (!data.token) {
-            alert("Google login failed");
-            return;
-        }
-
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("email", data.email);
-
-        alert("Logged in with Google 🚀");
-
-        init(); // your existing function
-    })
-    .catch(err => {
-        console.error(err);
-        alert("Google login error");
-    });
-}
