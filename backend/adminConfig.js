@@ -1,11 +1,11 @@
 module.exports = {
     admins: [
         {
-            email: "speedy",
+            email: "admin@example.com",
             password: "1234"
         },
         {
-            email: "partner@email.com",
+            email: "speedy",
             password: "5678"
         }
     ]
