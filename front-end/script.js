@@ -93,7 +93,7 @@ async function verifyCode() {
 // ======================
 // GOOGLE LOGIN
 // ======================
-window.handleGoogleLogin = function(response) {
+window.handleGoogleLogin = function (response) {
     const token = response.credential;
 
     fetch(`${API_URL}/google-login`, {
@@ -105,9 +105,11 @@ window.handleGoogleLogin = function(response) {
     .then(data => {
         localStorage.setItem("token", data.token);
         localStorage.setItem("email", data.email);
+
+        console.log("✅ Google login success");
         init();
     })
-    .catch(console.error);
+    .catch(err => console.error("Google login error:", err));
 };
 
 // ======================
