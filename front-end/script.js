@@ -41,8 +41,6 @@ updateCountdown();
 // ======================
 // 🚀 WAITLIST REGISTER (FIXED)
 // ======================
-const form = document.getElementById("preRegForm");
-
 if (form) {
     form.addEventListener("submit", async (e) => {
         e.preventDefault();
@@ -65,10 +63,20 @@ if (form) {
                 body: JSON.stringify({ email })
             });
 
-            const data = await res.json();
+            // 🔥 IMPORTANT FIX
+            let data;
+            try {
+                data = await res.json();
+            } catch {
+                const text = await res.text();
+                console.error("🔥 Server returned HTML:", text);
+                message.innerText = "Server error (not JSON)";
+                return;
+            }
 
             if (!res.ok) {
                 message.innerText = data.message || "Error registering";
+                console.error("❌ API error:", data);
                 return;
             }
 
@@ -79,12 +87,11 @@ if (form) {
             init();
 
         } catch (err) {
-            console.error(err);
+            console.error("🔥 FETCH ERROR:", err);
             message.innerText = "Server error. Try again.";
         }
     });
 }
-
 // ======================
 // 🔥 EARLY ACCESS SLOTS
 // ======================
