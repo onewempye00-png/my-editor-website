@@ -17,28 +17,28 @@ const PORT = process.env.PORT || 5000;
 const SECRET = "supersecretkey";
 
 // ======================
-// DEBUG ENV
+// DEBUG
 // ======================
-console.log("🔥 FIREBASE CHECK:", {
+console.log("🔥 ENV CHECK:", {
     project: process.env.FIREBASE_PROJECT_ID,
     email: process.env.FIREBASE_CLIENT_EMAIL,
-    keyLength: process.env.FIREBASE_PRIVATE_KEY?.length
+    key: process.env.FIREBASE_PRIVATE_KEY ? "OK" : "MISSING"
 });
-
-// ======================
-// FRONTEND PATH
-// ======================
-const frontendPath = path.join(__dirname, "../front-end");
 
 // ======================
 // MIDDLEWARE
 // ======================
 app.use(cors());
 app.use(express.json());
+
+// ======================
+// FRONTEND
+// ======================
+const frontendPath = path.join(__dirname, "../front-end");
 app.use(express.static(frontendPath));
 
 // ======================
-// TEST API
+// TEST
 // ======================
 app.get("/api", (req, res) => {
     res.json({ status: "online" });
@@ -58,27 +58,23 @@ app.get("/test-firebase", async (req, res) => {
 });
 
 // ======================
-// TOKENS FOLDER
-// ======================
-const TOKENS_FOLDER = path.join(__dirname, "tokens");
-if (!fs.existsSync(TOKENS_FOLDER)) {
-    fs.mkdirSync(TOKENS_FOLDER);
-}
-
-// ======================
-// JWT
+// TOKEN HELPER
 // ======================
 const createToken = (email) => {
     return jwt.sign({ email }, SECRET, { expiresIn: "7d" });
 };
 
 // ======================
-// GOOGLE LOGIN
+// GOOGLE LOGIN (FIXED)
 // ======================
 app.post("/google-login", async (req, res) => {
-    const { token } = req.body;
-
     try {
+        const { token } = req.body;
+
+        if (!token) {
+            return res.status(400).json({ message: "Missing Google token" });
+        }
+
         const ticket = await googleClient.verifyIdToken({
             idToken: token,
             audience: process.env.GOOGLE_CLIENT_ID
@@ -96,7 +92,10 @@ app.post("/google-login", async (req, res) => {
 
     } catch (err) {
         console.log("🔥 GOOGLE LOGIN ERROR:", err);
-        res.status(401).json({ message: "Invalid Google token" });
+        res.status(401).json({
+            message: "Invalid Google token",
+            error: err.message
+        });
     }
 });
 
@@ -124,7 +123,7 @@ app.post("/admin-login", (req, res) => {
 });
 
 // ======================
-// REGISTER (FIXED)
+// REGISTER (FIXED SAFE)
 // ======================
 app.post("/register", async (req, res) => {
     const { email } = req.body;
@@ -134,8 +133,6 @@ app.post("/register", async (req, res) => {
     }
 
     try {
-        console.log("📩 Register:", email);
-
         const userRef = db.collection("users").doc(email);
         const doc = await userRef.get();
 
@@ -149,15 +146,13 @@ app.post("/register", async (req, res) => {
             createdAt: new Date().toISOString()
         });
 
-        console.log("✅ Saved:", email);
-
         res.json({ message: "Registered 🚀" });
 
     } catch (err) {
         console.log("🔥 REGISTER ERROR:", err);
 
         res.status(500).json({
-            message: "Server error (Firebase issue)",
+            message: "Firebase error",
             error: err.message
         });
     }
@@ -184,12 +179,7 @@ app.post("/login", async (req, res) => {
         });
 
     } catch (err) {
-        console.log("🔥 LOGIN ERROR:", err);
-
-        res.status(500).json({
-            message: "Login error",
-            error: err.message
-        });
+        res.status(500).json({ message: err.message });
     }
 });
 
@@ -197,9 +187,9 @@ app.post("/login", async (req, res) => {
 // CHECK SUBSCRIPTION
 // ======================
 app.get("/check-subscription", async (req, res) => {
-    const { email } = req.query;
-
     try {
+        const { email } = req.query;
+
         const doc = await db.collection("users").doc(email).get();
 
         if (!doc.exists) {
@@ -230,7 +220,7 @@ app.get("/stats", async (req, res) => {
 });
 
 // ======================
-// FRONTEND ROUTES (LAST)
+// FRONTEND ROUTES
 // ======================
 app.get("/", (req, res) => {
     res.sendFile(path.join(frontendPath, "index.html"));
