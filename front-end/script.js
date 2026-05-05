@@ -112,6 +112,11 @@ window.handleGoogleLogin = function (response) {
     .catch(err => console.error("Google login error:", err));
 };
 
+<script src="https://accounts.google.com.gsi/client" async defer></script>
+google.accounts.id.initialize({
+     client_id="1030674561215-mdcj2ajlp1qigua4u43lheequk1a0q5n.apps.googleusercontent.com"
+     callback="handleGoogleLogin"});
+
 // ======================
 // COUNTDOWN
 // ======================
@@ -141,7 +146,6 @@ function updateCountdown() {
 setInterval(updateCountdown, 1000);
 updateCountdown();
 
-<script src="https://accounts.google.com.gsi/client" async defer></script>
 // ======================
 // INIT SYSTEM
 // ======================
