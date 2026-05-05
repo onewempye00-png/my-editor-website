@@ -141,6 +141,7 @@ function updateCountdown() {
 setInterval(updateCountdown, 1000);
 updateCountdown();
 
+<script src="https://accounts.google.com.gsi/client" async defer></script>
 // ======================
 // INIT SYSTEM
 // ======================
