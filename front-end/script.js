@@ -1,77 +1,60 @@
 const API_URL = "https://my-editor-website.onrender.com";
 
 // ======================
-// SAFE FETCH HELPER
-// ======================
 async function safeFetch(url, options = {}) {
     const res = await fetch(url, options);
+    const data = await res.json().catch(() => null);
 
-    let data;
-    try {
-        data = await res.json();
-    } catch {
-        const text = await res.text();
-        console.error("❌ Non-JSON response:", text);
-        throw new Error("Server returned invalid JSON");
-    }
-
-    if (!res.ok) {
-        throw new Error(data.message || "Request failed");
-    }
-
+    if (!res.ok) throw new Error(data?.message || "Request failed");
     return data;
 }
 
 // ======================
-// REGISTER → SEND CODE
+// REGISTER + SEND OTP
 // ======================
 const form = document.getElementById("preRegForm");
 
-if (form) {
-    form.addEventListener("submit", async (e) => {
-        e.preventDefault();
+form?.addEventListener("submit", async (e) => {
+    e.preventDefault();
 
-        const email = form.querySelector("input").value.trim();
-        const message = document.getElementById("message");
-
-        if (!email) {
-            message.innerText = "Enter email";
-            return;
-        }
-
-        try {
-            message.innerText = "Sending code...";
-
-            await safeFetch(`${API_URL}/send-code`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email })
-            });
-
-            message.innerText = "Check your email 📧";
-
-            localStorage.setItem("email", email);
-
-            document.getElementById("codeSection").style.display = "block";
-
-        } catch (err) {
-            console.error(err);
-            message.innerText = err.message;
-        }
-    });
-}
-
-// ======================
-// VERIFY CODE
-// ======================
-async function verifyCode() {
-    const email = localStorage.getItem("email");
-    const code = document.getElementById("codeInput").value.trim();
+    const email = form.querySelector("input").value.trim();
     const message = document.getElementById("message");
 
     try {
-        message.innerText = "Verifying...";
+        message.innerText = "Sending OTP...";
 
+        await safeFetch(`${API_URL}/register`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email })
+        });
+
+        await safeFetch(`${API_URL}/send-code`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email })
+        });
+
+        localStorage.setItem("email", email);
+        document.getElementById("codeSection").style.display = "block";
+
+        message.innerText = "Check email 📧";
+
+    } catch (err) {
+        message.innerText = err.message;
+    }
+});
+
+// ======================
+// VERIFY OTP
+// ======================
+async function verifyCode() {
+    const email = localStorage.getItem("email");
+    const code = document.getElementById("codeInput").value;
+
+    const message = document.getElementById("message");
+
+    try {
         const data = await safeFetch(`${API_URL}/verify-code`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -79,83 +62,61 @@ async function verifyCode() {
         });
 
         localStorage.setItem("token", data.token);
-
         message.innerText = "Verified 🚀";
 
         init();
 
     } catch (err) {
-        console.error(err);
         message.innerText = err.message;
     }
 }
 
 // ======================
-// GOOGLE LOGIN
+// GOOGLE LOGIN FIXED
 // ======================
-window.handleGoogleLogin = function (response) {
-    const token = response.credential;
+window.handleGoogleLogin = async function (response) {
+    try {
+        const data = await safeFetch(`${API_URL}/google-login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token: response.credential })
+        });
 
-    fetch(`${API_URL}/google-login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token })
-    })
-    .then(res => res.json())
-    .then(data => {
         localStorage.setItem("token", data.token);
         localStorage.setItem("email", data.email);
 
-        console.log("✅ Google login success");
         init();
-    })
-    .catch(err => console.error("Google login error:", err));
+
+    } catch (err) {
+        console.error(err);
+    }
 };
 
-<script src="https://accounts.google.com.gsi/client" async defer></script>
-google.accounts.id.initialize({
-     client_id="1030674561215-mdcj2ajlp1qigua4u43lheequk1a0q5n.apps.googleusercontent.com"
-     callback="handleGoogleLogin"});
-
-// ======================
-// COUNTDOWN
 // ======================
 const launchDate = new Date();
 launchDate.setMonth(launchDate.getMonth() + 6);
 
-const countdown = document.getElementById("countdown");
-
-function updateCountdown() {
-    if (!countdown) return;
+setInterval(() => {
+    const el = document.getElementById("countdown");
+    if (!el) return;
 
     const diff = launchDate - Date.now();
 
-    if (diff <= 0) {
-        countdown.innerText = "🚀 LIVE";
-        return;
-    }
+    if (diff <= 0) return el.innerText = "LIVE";
 
-    const d = Math.floor(diff / (1000 * 60 * 60 * 24));
-    const h = Math.floor((diff / (1000 * 60 * 60)) % 24);
-    const m = Math.floor((diff / (1000 * 60)) % 60);
-    const s = Math.floor((diff / 1000) % 60);
+    const d = Math.floor(diff / 86400000);
+    const h = Math.floor(diff / 3600000 % 24);
+    const m = Math.floor(diff / 60000 % 60);
+    const s = Math.floor(diff / 1000 % 60);
 
-    countdown.innerText = `${d}d ${h}h ${m}m ${s}s`;
-}
+    el.innerText = `${d}d ${h}h ${m}m ${s}s`;
+}, 1000);
 
-setInterval(updateCountdown, 1000);
-updateCountdown();
-
-// ======================
-// INIT SYSTEM
 // ======================
 async function init() {
     const email = localStorage.getItem("email");
-
     const editor = document.getElementById("editor");
     const paywall = document.getElementById("paywall");
-
-    if (!editor || !paywall) return;
 
     if (!email) {
         paywall.style.display = "block";
