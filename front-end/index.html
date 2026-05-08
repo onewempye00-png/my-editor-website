@@ -1,41 +1,52 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <title>My Editor</title>
 <link rel="stylesheet" href="styles.css">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 
 <body>
 
 <h1>My Editor</h1>
 
+<!-- REGISTER -->
 <form id="preRegForm">
-    <input type="email" placeholder="Email" required>
-    <button>Join</button>
+    <input type="email" placeholder="Email" required />
+    <button type="submit">Join</button>
 </form>
 
+<!-- OTP SECTION -->
 <div id="codeSection" style="display:none;">
-    <input id="codeInput" placeholder="OTP">
-    <button onclick="verifyCode()">Verify</button>
+    <input id="codeInput" placeholder="Enter OTP" />
+    <button type="button" onclick="verifyCode()">Verify</button>
 </div>
 
 <p id="message"></p>
 
+<!-- COUNTDOWN -->
 <div id="countdown"></div>
 
+<!-- GOOGLE LOGIN (FIXED) -->
 <div id="g_id_onload"
-     data-client_id="1030674561215-mdcj2ajlp1qigua4u43lheequk1a0q5n.apps.googleusercontent.com"
-     data-callback="handleGoogleLogin">
+     data-client_id="YOUR_CLIENT_ID"
+     data-callback="handleGoogleLogin"
+     data-auto_prompt="false">
 </div>
 
-<div class="g_id_signin"></div>
+<div class="g_id_signin" data-type="standard"></div>
 
+<!-- APP UI -->
 <div id="editor" style="display:none;">EDITOR</div>
 <div id="paywall">LOCKED</div>
 
+<!-- GOOGLE SCRIPT (MUST LOAD BEFORE YOUR SCRIPT) -->
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="script.js"></script>
+
+<!-- MAIN SCRIPT (DEFER FIX) -->
+<script src="script.js" defer></script>
 
 </body>
 </html>

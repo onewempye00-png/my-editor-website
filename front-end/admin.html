@@ -1,43 +1,78 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Admin Dashboard</title>
-    <link rel="stylesheet" href="admin.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Dashboard</title>
+
+<link rel="stylesheet" href="admin.css">
 </head>
+
 <body>
 
-<h1>Admin Dashboard</h1>
+<!-- ======================
+     LOGIN SCREEN
+====================== -->
+<div id="loginBox">
+    <h2>Admin Login</h2>
 
-<button onclick="loadStats()">Load Stats</button>
-<button onclick="loadUsers()">Load Users</button>
+    <input id="adminEmail" placeholder="Email" />
+    <input id="adminPassword" type="password" placeholder="Password" />
 
-<pre id="output"></pre>
+    <button onclick="adminLogin()">Login</button>
 
-<script>
-const token = localStorage.getItem("admin_token");
+    <p id="adminMessage"></p>
+</div>
 
-async function loadStats() {
-    const res = await fetch("https://my-editor-website.onrender.com/stats", {
-        headers: {
-            "Authorization": token
-        }
-    });
+<!-- ======================
+     DASHBOARD (HIDDEN BY DEFAULT)
+====================== -->
+<div id="dashboard" style="display:none;">
 
-    document.getElementById("output").textContent =
-        JSON.stringify(await res.json(), null, 2);
-}
+    <header>
+        <h1>⚡ Admin Dashboard</h1>
+        <button onclick="logout()">Logout</button>
+    </header>
 
-async function loadUsers() {
-    const res = await fetch("https://my-editor-website.onrender.com/users", {
-        headers: {
-            "Authorization": token
-        }
-    });
+    <div class="container">
 
-    document.getElementById("output").textContent =
-        JSON.stringify(await res.json(), null, 2);
-}
-</script>
+        <div class="card">
+            <h2>Total Users</h2>
+            <div id="totalUsers" class="big">0</div>
+        </div>
 
+        <div class="card">
+            <h2>Verified Users</h2>
+            <div id="verifiedUsers" class="big">0</div>
+        </div>
+
+        <div class="card">
+            <h2>Banned Users</h2>
+            <div id="bannedUsers" class="big">0</div>
+        </div>
+
+        <div class="card">
+            <h2>Users Table</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Email</th>
+                        <th>Verified</th>
+                        <th>Banned</th>
+                        <th>Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="usersTable"></tbody>
+            </table>
+        </div>
+
+        <button onclick="refresh()">Refresh</button>
+
+    </div>
+
+</div>
+
+<script src="admin.js"></script>
 </body>
 </html>

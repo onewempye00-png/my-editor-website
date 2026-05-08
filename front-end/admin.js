@@ -1,108 +1,168 @@
-const API_URL = "https://my-editor-website.onrender.com/";
-
-let token = "";
+const API_URL = "https://my-editor-website.onrender.com";
 
 // ======================
-// ADMIN LOGIN
+// GET TOKEN
 // ======================
-async function login() {
-    const email = document.getElementById("email").value;
-    const password = document.getElementById("password").value;
-
-    const res = await fetch(`${API_URL}/admin-login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            email,
-            password
-        })
-    });
-
-    const data = await res.json();
-
-    if (res.ok) {
-        token = data.token;
-
-        localStorage.setItem("adminToken", token);
-
-        window.location.href = "admin.html"; // redirect after login
-    } else {
-        document.getElementById("msg").innerText =
-            data.message || "Login failed";
-    }
+function getToken() {
+    return localStorage.getItem("adminToken");
 }
 
 // ======================
-// AUTH HEADER HELPER
+// AUTH HEADERS
 // ======================
-function authHeaders() {
+function authHeader() {
     return {
         "Content-Type": "application/json",
-        Authorization: localStorage.getItem("adminToken")
+        "Authorization": getToken()
     };
 }
 
 // ======================
-// LOAD USERS
+// ADMIN LOGIN (FIXED ROUTE)
 // ======================
-async function loadUsers() {
-    const res = await fetch(`${API_URL}/admin/users`, {
-        headers: authHeaders()
-    });
+async function adminLogin() {
+    const email = document.getElementById("adminEmail").value.trim();
+    const password = document.getElementById("adminPassword").value.trim();
+    const message = document.getElementById("adminMessage");
 
-    const users = await res.json();
+    try {
+        message.innerText = "Logging in...";
 
-    const list = document.getElementById("users");
-    list.innerHTML = "";
+        const res = await fetch(`${API_URL}/admin/login`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ email, password })
+        });
 
-    users.forEach(u => {
-        const li = document.createElement("li");
-        li.innerText = u.email;
-        list.appendChild(li);
-    });
+        const data = await res.json();
+
+        if (!res.ok) throw new Error(data.message);
+
+        localStorage.setItem("adminToken", data.token);
+
+        document.getElementById("loginBox").style.display = "none";
+        document.getElementById("dashboard").style.display = "block";
+
+        loadDashboard();
+
+    } catch (err) {
+        message.innerText = err.message;
+    }
+}
+document.addEventListener("DOMContentLoaded", () => {
+    const token = localStorage.getItem("adminToken");
+
+    if (token) {
+        document.getElementById("loginBox").style.display = "none";
+        document.getElementById("dashboard").style.display = "block";
+        loadDashboard();
+    } else {
+        document.getElementById("loginBox").style.display = "block";
+        document.getElementById("dashboard").style.display = "none";
+    }
+});
+function logout() {
+    localStorage.removeItem("adminToken");
+    location.reload();
 }
 
 // ======================
-// STATS
+// LOAD STATS (FIXED FIELD SAFETY)
 // ======================
 async function loadStats() {
-    const res = await fetch(`${API_URL}/stats`, {
-        headers: authHeaders()
-    });
+    try {
+        const res = await fetch(`${API_URL}/admin/stats`, {
+            headers: authHeader()
+        });
 
-    const data = await res.json();
+        const data = await res.json();
 
-    document.getElementById("stats").innerText =
-        "Total Users: " + data.totalUsers;
+        document.getElementById("totalUsers").innerText = data.totalUsers || 0;
+        document.getElementById("verifiedUsers").innerText = data.verified || 0;
+        document.getElementById("bannedUsers").innerText = data.banned || 0;
+
+    } catch (err) {
+        console.error(err);
+    }
 }
 
 // ======================
-// REVENUE
+// LOAD USERS (FIX SAFE OBJECT)
 // ======================
-async function loadRevenue() {
-    const res = await fetch(`${API_URL}/revenue`, {
-        headers: authHeaders()
-    });
+async function loadUsers() {
+    try {
+        const res = await fetch(`${API_URL}/admin/users`, {
+            headers: authHeader()
+        });
 
-    const data = await res.json();
+        const users = await res.json();
 
-    document.getElementById("revenue").innerText =
-        `Revenue: $${data.revenue}`;
+        const table = document.getElementById("usersTable");
+        table.innerHTML = "";
+
+        Object.values(users || {}).forEach(user => {
+            const row = document.createElement("tr");
+
+            row.innerHTML = `
+                <td>${user.email || "No email"}</td>
+                <td>${user.verified ? "✅" : "❌"}</td>
+                <td>${user.banned ? "🚫" : "✅"}</td>
+                <td>${user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "N/A"}</td>
+                <td>
+                    <button onclick="banUser('${user.email}')">Ban</button>
+                    <button onclick="deleteUser('${user.email}')">Delete</button>
+                </td>
+            `;
+
+            table.appendChild(row);
+        });
+
+    } catch (err) {
+        console.error(err);
+    }
 }
 
 // ======================
-// SEND EMAIL
+// DELETE USER (FIX ROUTE MATCH)
 // ======================
-async function sendEmail() {
-    const subject = document.getElementById("subject").value;
-    const message = document.getElementById("emailMessage").value;
+async function deleteUser(email) {
+    await fetch(`${API_URL}/admin/user/${encodeURIComponent(email)}`, {
+        method: "DELETE",
+        headers: authHeader()
+    });
 
-    const res = await fetch(`${API_URL}/send-email`, {
+    loadUsers();
+    loadStats();
+}
+
+// ======================
+// BAN USER
+// ======================
+async function banUser(email) {
+    await fetch(`${API_URL}/admin/ban`, {
         method: "POST",
-        headers: authHeaders(),
-        body: JSON.stringify({ subject, message })
+        headers: authHeader(),
+        body: JSON.stringify({ email })
     });
 
-    const data = await res.json();
-    alert(data.message);
+    loadUsers();
+    loadStats();
+}
+
+// ======================
+function refresh() {
+    loadStats();
+    loadUsers();
+}
+
+async function loadDashboard() {
+    await loadStats();
+    await loadUsers();
+}
+
+function logout() {
+    localStorage.removeItem("adminToken");
+    location.reload();
 }

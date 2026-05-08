@@ -1,16 +1,25 @@
 const API_URL = "https://my-editor-website.onrender.com";
 
 // ======================
+// SAFE FETCH
+// ======================
 async function safeFetch(url, options = {}) {
     const res = await fetch(url, options);
-    const data = await res.json().catch(() => null);
 
-    if (!res.ok) throw new Error(data?.message || "Request failed");
+    let data = null;
+    try {
+        data = await res.json();
+    } catch {}
+
+    if (!res.ok) {
+        throw new Error(data?.message || "Request failed");
+    }
+
     return data;
 }
 
 // ======================
-// REGISTER + SEND OTP
+// REGISTER + OTP
 // ======================
 const form = document.getElementById("preRegForm");
 
@@ -38,7 +47,7 @@ form?.addEventListener("submit", async (e) => {
         localStorage.setItem("email", email);
         document.getElementById("codeSection").style.display = "block";
 
-        message.innerText = "Check email 📧";
+        message.innerText = "Check your email 📧";
 
     } catch (err) {
         message.innerText = err.message;
@@ -50,11 +59,12 @@ form?.addEventListener("submit", async (e) => {
 // ======================
 async function verifyCode() {
     const email = localStorage.getItem("email");
-    const code = document.getElementById("codeInput").value;
-
+    const code = document.getElementById("codeInput").value.trim();
     const message = document.getElementById("message");
 
     try {
+        message.innerText = "Verifying...";
+
         const data = await safeFetch(`${API_URL}/verify-code`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -62,6 +72,7 @@ async function verifyCode() {
         });
 
         localStorage.setItem("token", data.token);
+
         message.innerText = "Verified 🚀";
 
         init();
@@ -72,9 +83,11 @@ async function verifyCode() {
 }
 
 // ======================
-// GOOGLE LOGIN FIXED
+// GOOGLE LOGIN
 // ======================
 window.handleGoogleLogin = async function (response) {
+    const message = document.getElementById("message");
+
     try {
         const data = await safeFetch(`${API_URL}/google-login`, {
             method: "POST",
@@ -85,13 +98,18 @@ window.handleGoogleLogin = async function (response) {
         localStorage.setItem("token", data.token);
         localStorage.setItem("email", data.email);
 
+        message.innerText = "Google login success ✅";
+
         init();
 
     } catch (err) {
         console.error(err);
+        message.innerText = "Google login failed";
     }
 };
 
+// ======================
+// COUNTDOWN
 // ======================
 const launchDate = new Date();
 launchDate.setMonth(launchDate.getMonth() + 6);
@@ -102,21 +120,29 @@ setInterval(() => {
 
     const diff = launchDate - Date.now();
 
-    if (diff <= 0) return el.innerText = "LIVE";
+    if (diff <= 0) {
+        el.innerText = "LIVE";
+        return;
+    }
 
     const d = Math.floor(diff / 86400000);
-    const h = Math.floor(diff / 3600000 % 24);
-    const m = Math.floor(diff / 60000 % 60);
-    const s = Math.floor(diff / 1000 % 60);
+    const h = Math.floor((diff / 3600000) % 24);
+    const m = Math.floor((diff / 60000) % 60);
+    const s = Math.floor((diff / 1000) % 60);
 
     el.innerText = `${d}d ${h}h ${m}m ${s}s`;
+
 }, 1000);
 
 // ======================
-async function init() {
+// INIT UI
+// ======================
+function init() {
     const email = localStorage.getItem("email");
     const editor = document.getElementById("editor");
     const paywall = document.getElementById("paywall");
+
+    if (!editor || !paywall) return;
 
     if (!email) {
         paywall.style.display = "block";
