@@ -1,21 +1,18 @@
 const nodemailer = require("nodemailer");
 
-// ⚠️ Replace with your real email + app password
 const transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
-        user: "youremail@gmail.com",
-        pass: "yourapppassword"
+        user: process.env.GMAIL_USER,
+        pass: process.env.GMAIL_APP_PASSWORD
     }
 });
 
-const sendEmail = async (to, subject, text) => {
+module.exports = async function sendEmail(to, subject, text) {
     await transporter.sendMail({
-        from: "My Editor <youremail@gmail.com>",
+        from: `My Editor <${process.env.GMAIL_USER}>`,
         to,
         subject,
         text
     });
 };
-
-module.exports = sendEmail;
