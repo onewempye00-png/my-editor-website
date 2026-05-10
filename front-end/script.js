@@ -40,18 +40,11 @@ form?.addEventListener("submit", async (e) => {
     try {
         message.innerText = "Sending OTP...";
 
-        await safeFetch(`${API_URL}/register`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email })
-        });
-
         await safeFetch(`${API_URL}/send-code`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email })
-        });
-
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email })
+});
         localStorage.setItem("email", email);
 
         // show OTP box (IMPORTANT FIX)
