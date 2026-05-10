@@ -109,12 +109,19 @@ app.post("/register", async (req, res) => {
     }
 
     await ref.set({
-        email,
-        verified: false,
-        banned: false,
-        paid: false,
-        createdAt: Date.now()
-    });
+    email,
+    verified: false,
+    banned: false,
+    paid: false,
+    createdAt: Date.now()
+});
+
+// 🔥 INCREMENT WAITLIST
+const statsRef = db.ref("stats/waitingCount");
+
+const current = (await statsRef.get()).val() || 0;
+
+await statsRef.set(current + 1);
 
     res.json({ message: "Registered" });
 });
@@ -222,6 +229,58 @@ app.post("/google-login", async (req, res) => {
         res.status(401).json({ message: "Google login failed" });
     }
 });
+
+// ======================
+// EMAIL EXPLOSION
+// ======================
+const sendLaunchEmails = async () => {
+    const snap = await db.ref("users").get();
+    const users = snap.val() || {};
+
+    const emails = Object.values(users)
+        .map(u => u.email)
+        .filter(Boolean);
+
+    for (const email of emails) {
+        await transporter.sendMail({
+            from: process.env.GMAIL_USER,
+            to: email,
+            subject: "🚀 We are LIVE!",
+            html: `
+                <h1>The app is now LIVE!</h1>
+                <p>Click here to access the platform.</p>
+            `
+        });
+    }
+};
+
+// ======================
+// LAUNCH CHECKER
+// ======================
+setInterval(async () => {
+    const snap = await db.ref("stats").get();
+    const stats = snap.val();
+
+    if (!stats) return;
+
+    const now = Date.now();
+
+    if (!stats.launched && now >= stats.launchTime) {
+
+        console.log("🚀 LAUNCH TRIGGERED");
+
+        // mark as launched so it only runs once
+        await db.ref("stats").update({
+            launched: true
+        });
+
+        // send emails
+        await sendLaunchEmails();
+
+        console.log("📧 Email blast complete");
+    }
+
+}, 10000); // checks every 10 seconds
 
 // ======================
 // ADMIN CONFIG
