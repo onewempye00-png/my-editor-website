@@ -1,4 +1,4 @@
-const API_URL = "https://my-editor-website.onrender.com";
+const API_URL = "http://localhost:5000";
 
 // ======================
 // GET TOKEN

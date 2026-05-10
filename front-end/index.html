@@ -2,51 +2,81 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <title>My Editor</title>
+
 <link rel="stylesheet" href="styles.css">
 
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
 </head>
 
 <body>
 
-<h1>My Editor</h1>
+<!-- HERO -->
+<section class="hero">
 
-<!-- REGISTER -->
-<form id="preRegForm">
-    <input type="email" placeholder="Email" required />
-    <button type="submit">Join</button>
-</form>
+    <header>
+        <div class="logo">⚡ MyEditor</div>
+        <nav>
+            <a href="#">Home</a>
+            <a href="features.html">Features</a>
+            <a href="buy.html">Get Premium</a>
+        </nav>
+    </header>
 
-<!-- OTP SECTION -->
-<div id="codeSection" style="display:none;">
-    <input id="codeInput" placeholder="Enter OTP" />
-    <button type="button" onclick="verifyCode()">Verify</button>
-</div>
+    <h1>Create. Edit. Ship.</h1>
+    <p>Next-gen AI-powered editing platform</p>
 
-<p id="message"></p>
+    <div id="countdown">Loading...</div>
 
-<!-- COUNTDOWN -->
-<div id="countdown"></div>
+    <!-- 🔥 IMAGE PLACEHOLDER (ADDED) -->
+    <div class="hero-image">
+        Image Preview / App Showcase
+    </div>
 
-<!-- GOOGLE LOGIN (FIXED) -->
-<div id="g_id_onload"
-     data-client_id="YOUR_CLIENT_ID"
-     data-callback="handleGoogleLogin"
-     data-auto_prompt="false">
-</div>
+</section>
 
-<div class="g_id_signin" data-type="standard"></div>
+<!-- JOIN -->
+<section class="hero">
 
-<!-- APP UI -->
-<div id="editor" style="display:none;">EDITOR</div>
-<div id="paywall">LOCKED</div>
+    <h2>Join Early Access</h2>
 
-<!-- GOOGLE SCRIPT (MUST LOAD BEFORE YOUR SCRIPT) -->
-<script src="https://accounts.google.com/gsi/client" async defer></script>
+    <form id="preRegForm">
 
-<!-- MAIN SCRIPT (DEFER FIX) -->
-<script src="script.js" defer></script>
+        <input type="email" placeholder="Enter email" required />
+
+        <button type="submit">Join Waitlist</button>
+
+        <!-- 🔥 OTP INPUT -->
+        <div id="otpBox" style="display:none; margin-top:15px;">
+            <input id="codeInput" placeholder="Enter OTP" />
+            <button type="button" onclick="verifyCode()">Verify</button>
+        </div>
+
+        <!-- 🎬 VIDEO PLACEHOLDER (ADDED UNDER EMAIL SECTION) -->
+        <div class="video-placeholder">
+            🎬 Video Demo Coming Soon
+        </div>
+
+    </form>
+
+    <p id="message"></p>
+
+</section>
+
+<!-- APP -->
+<section id="editor" style="display:none;">
+    <h2>Editor Dashboard</h2>
+    <p>Welcome!</p>
+</section>
+
+<section id="paywall">
+    <h2>Locked 🔒</h2>
+    <p>Please verify email</p>
+</section>
+
+<script src="script.js"></script>
 
 </body>
 </html>

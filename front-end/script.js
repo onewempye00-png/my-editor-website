@@ -1,4 +1,4 @@
-const API_URL = "https://my-editor-website.onrender.com";
+const API_URL = "http://localhost:5000";
 
 // ======================
 // SAFE FETCH
@@ -45,7 +45,6 @@ form?.addEventListener("submit", async (e) => {
         });
 
         localStorage.setItem("email", email);
-        document.getElementById("codeSection").style.display = "block";
 
         message.innerText = "Check your email 📧";
 
@@ -109,10 +108,21 @@ window.handleGoogleLogin = async function (response) {
 };
 
 // ======================
-// COUNTDOWN
+// ⏱️ FIXED COUNTDOWN (PERSISTENT)
 // ======================
-const launchDate = new Date();
-launchDate.setMonth(launchDate.getMonth() + 6);
+
+// ONLY SET ONCE
+let launchDate = localStorage.getItem("launchDate");
+
+if (!launchDate) {
+    const date = new Date();
+    date.setMonth(date.getMonth() + 6);
+
+    launchDate = date.getTime();
+    localStorage.setItem("launchDate", launchDate);
+} else {
+    launchDate = parseInt(launchDate);
+}
 
 setInterval(() => {
     const el = document.getElementById("countdown");
