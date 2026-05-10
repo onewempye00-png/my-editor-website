@@ -135,32 +135,45 @@ await statsRef.set(current + 1);
 // SEND OTP
 // ======================
 app.post("/send-code", otpLimiter, async (req, res) => {
-    try {
-        const { email } = req.body;
-        if (!email) return res.status(400).json({ message: "Email required" });
 
-        const code = Math.floor(100000 + Math.random() * 900000).toString();
+    try {
+
+        console.log("SEND CODE HIT");
+
+        const { email } = req.body;
+
+        if (!email) {
+            return res.status(400).json({
+                message: "Email required"
+            });
+        }
+
+        const code =
+            Math.floor(100000 + Math.random() * 900000).toString();
 
         await db.ref("otps/" + safeEmail(email)).set({
             code,
             expires: Date.now() + 10 * 60 * 1000
         });
 
-        await transporter.sendMail({
-            from: process.env.GMAIL_USER,
-            to: email,
-            subject: "Your OTP Code",
-            html: `<h2>Your code: ${code}</h2>`
+        console.log("OTP SAVED");
+
+        // 🔥 TEMPORARY EMAIL TEST
+        console.log("OTP CODE:", code);
+
+        return res.json({
+            message: "OTP generated"
         });
 
-        res.json({ message: "OTP sent" });
-
     } catch (err) {
-        console.log(err);
-        res.status(500).json({ message: "Email error" });
+
+        console.log("SEND CODE ERROR:", err);
+
+        return res.status(500).json({
+            message: "Send code failed"
+        });
     }
 });
-
 // ======================
 // VERIFY OTP
 // ======================
