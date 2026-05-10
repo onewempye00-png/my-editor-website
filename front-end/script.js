@@ -1,4 +1,4 @@
-const API_URL = "https://my-editor-website.onrender.com";
+const API_URL = "http://localhost:5000";
 
 // ======================
 // SAFE FETCH
@@ -112,37 +112,37 @@ window.handleGoogleLogin = async function (response) {
 // ======================
 
 // ONLY SET ONCE
-let launchDate = localStorage.getItem("launchDate");
+import { getDatabase, ref, onValue } from "firebase/database";
 
-if (!launchDate) {
-    const date = new Date();
-    date.setMonth(date.getMonth() + 6);
+const db = getDatabase();
+const launchRef = ref(db, "stats/launchTime");
 
-    launchDate = date.getTime();
-    localStorage.setItem("launchDate", launchDate);
-} else {
-    launchDate = parseInt(launchDate);
-}
+onValue(launchRef, (snapshot) => {
+    const launchTime = snapshot.val();
 
-setInterval(() => {
-    const el = document.getElementById("countdown");
-    if (!el) return;
+    setInterval(() => {
+        const el = document.getElementById("countdown");
+        if (!el) return;
 
-    const diff = launchDate - Date.now();
+        const diff = launchTime - Date.now();
 
-    if (diff <= 0) {
-        el.innerText = "LIVE";
-        return;
-    }
+        if (diff <= 0) {
+            el.innerText = "🚀 LIVE";
 
-    const d = Math.floor(diff / 86400000);
-    const h = Math.floor((diff / 3600000) % 24);
-    const m = Math.floor((diff / 60000) % 60);
-    const s = Math.floor((diff / 1000) % 60);
+            // optional explosion trigger
+            document.body.classList.add("explode");
+            return;
+        }
 
-    el.innerText = `${d}d ${h}h ${m}m ${s}s`;
+        const d = Math.floor(diff / 86400000);
+        const h = Math.floor((diff / 3600000) % 24);
+        const m = Math.floor((diff / 60000) % 60);
+        const s = Math.floor((diff / 1000) % 60);
 
-}, 1000);
+        el.innerText = `${d}d ${h}h ${m}m ${s}s`;
+
+    }, 1000);
+});
 
 // ======================
 // INIT UI
