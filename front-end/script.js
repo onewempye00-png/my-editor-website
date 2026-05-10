@@ -6,12 +6,18 @@ const API_URL = "https://my-editor-website.onrender.com";
 async function safeFetch(url, options = {}) {
     const res = await fetch(url, options);
 
-    let data = null;
+    const text = await res.text(); // 👈 IMPORTANT DEBUG STEP
+
+    let data;
     try {
-        data = await res.json();
-    } catch {}
+        data = JSON.parse(text);
+    } catch {
+        console.log("NON-JSON RESPONSE:", text);
+        throw new Error("Backend did not return JSON");
+    }
 
     if (!res.ok) {
+        console.log("ERROR RESPONSE:", data);
         throw new Error(data?.message || "Request failed");
     }
 
