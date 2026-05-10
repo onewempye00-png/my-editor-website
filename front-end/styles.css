@@ -171,3 +171,13 @@ button:hover {
     align-items: center;
     z-index: 999;
 }
+
+.explode {
+    animation: flash 1s ease-in-out infinite;
+}
+
+@keyframes flash {
+    0% { background: black; }
+    50% { background: white; }
+    100% { background: black; }
+}
