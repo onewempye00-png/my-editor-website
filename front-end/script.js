@@ -24,7 +24,7 @@ async function safeFetch(url, options = {}) {
 const form = document.getElementById("preRegForm");
 
 form?.addEventListener("submit", async (e) => {
-    e.preventDefault();
+    e.preventDefault(); // ✅ THIS stops reload
 
     const email = form.querySelector("input").value.trim();
     const message = document.getElementById("message");
@@ -46,13 +46,15 @@ form?.addEventListener("submit", async (e) => {
 
         localStorage.setItem("email", email);
 
+        // show OTP box (IMPORTANT FIX)
+        document.getElementById("otpBox").style.display = "block";
+
         message.innerText = "Check your email 📧";
 
     } catch (err) {
         message.innerText = err.message;
     }
 });
-
 // ======================
 // VERIFY OTP
 // ======================
@@ -112,25 +114,26 @@ window.handleGoogleLogin = async function (response) {
 // ======================
 
 // ONLY SET ONCE
-import { getDatabase, ref, onValue } from "firebase/database";
+document.addEventListener("DOMContentLoaded", () => {
+    const el = document.getElementById("countdown");
 
-const db = getDatabase();
-const launchRef = ref(db, "stats/launchTime");
+    if (!el) return;
 
-onValue(launchRef, (snapshot) => {
-    const launchTime = snapshot.val();
+    // store launch time so it NEVER resets visually incorrectly
+    let launchDate = localStorage.getItem("launchDate");
 
-    setInterval(() => {
-        const el = document.getElementById("countdown");
-        if (!el) return;
+    if (!launchDate) {
+        launchDate = new Date().getTime() + (6 * 30 * 24 * 60 * 60 * 1000);
+        localStorage.setItem("launchDate", launchDate);
+    }
 
-        const diff = launchTime - Date.now();
+    launchDate = parseInt(launchDate);
+
+    function update() {
+        const diff = launchDate - Date.now();
 
         if (diff <= 0) {
-            el.innerText = "🚀 LIVE";
-
-            // optional explosion trigger
-            document.body.classList.add("explode");
+            el.innerText = "LIVE 🚀";
             return;
         }
 
@@ -140,8 +143,10 @@ onValue(launchRef, (snapshot) => {
         const s = Math.floor((diff / 1000) % 60);
 
         el.innerText = `${d}d ${h}h ${m}m ${s}s`;
+    }
 
-    }, 1000);
+    update();
+    setInterval(update, 1000);
 });
 
 // ======================
