@@ -1,4 +1,4 @@
-const API_URL = "http://localhost:5000";
+const API_URL = "https://my-editor-website.onrender.com";
 
 // ======================
 // SAFE FETCH (FIXED DEBUG + RELIABLE ERROR HANDLING)
