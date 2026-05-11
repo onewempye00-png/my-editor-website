@@ -583,6 +583,51 @@ const sendLaunchEmails = async () => {
 };
 
 // ======================
+// 🔥 PUBLIC COUNTDOWN SYNC (ADDED)
+// ======================
+// This lets frontend get real launch time from Firebase
+app.get("/launch-time", async (req, res) => {
+    try {
+        const snap = await db.ref("stats/launchTime").get();
+
+        const launchTime = snap.val();
+
+        res.json({
+            launchTime: launchTime || null
+        });
+
+    } catch (err) {
+        console.log("LAUNCH TIME FETCH ERROR:", err);
+
+        res.status(500).json({
+            message: "Failed to fetch launch time"
+        });
+    }
+});
+
+// ======================
+// 🔥 ENSURE DEFAULT LAUNCH TIME EXISTS (ADDED SAFETY)
+// ======================
+(async () => {
+    try {
+        const ref = db.ref("stats/launchTime");
+        const snap = await ref.get();
+
+        if (!snap.exists()) {
+            // default: 6 months from now
+            const defaultTime = Date.now() + (6 * 30 * 24 * 60 * 60 * 1000);
+
+            await ref.set(defaultTime);
+
+            console.log("🔥 Default launchTime set in Firebase");
+        }
+
+    } catch (err) {
+        console.log("launchTime init error:", err);
+    }
+})();
+
+// ======================
 // LAUNCH CHECKER
 // ======================
 setInterval(async () => {
