@@ -324,12 +324,24 @@ if (current < maxSlots) {
     }
 });
 
-const earlyRef = db.ref("stats/earlyAccessRemaining");
+await db.ref("stats/earlyAccess").transaction((data) => {
+    if (!data) {
+        return {
+            max: 5000,
+            used: 1,
+            remaining: 4999
+        };
+    }
 
-const currentEarly = (await earlyRef.get()).val();
+    if (data.used >= data.max) return data;
 
-if (currentEarly > 0) {
-    await earlyRef.set(currentEarly - 1);
+    return {
+        ...data,
+        used: data.used + 1,
+        remaining: data.max - (data.used + 1)
+    };
+});
+
 }
 
 // ======================
