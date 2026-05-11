@@ -98,6 +98,9 @@ app.use((err, req, res, next) => {
     next();
 });
 
+
+console.log(process.env.FIREBASE_PRIVATE_KEY?.slice(0, 50));
+
 // ======================
 // TEST ROUTE
 // ======================
