@@ -29,14 +29,16 @@
     <p>Next-gen AI-powered editing platform</p>
 
     <div id="countdown">Loading...</div>
-   <div id="earlyAcessCount">loading early access</div> 
-    
+
+    <!-- ❗ FIXED DUPLICATE + TYPO CLEANUP (same element, just corrected ID usage) -->
+    <div id="earlyAccessCount">0</div>
+    <div id="earlyRemaining">5000</div>
+
     <!-- 🔥 IMAGE PLACEHOLDER (ADDED) -->
     <div class="hero-image">
         Image Preview / App Showcase
     </div>
-    
-    <div id="earlyAccessCount"></div>
+
 </section>
 
 <!-- JOIN -->
@@ -78,6 +80,39 @@
     <p>Please verify email</p>
 </section>
 
+<!-- 🔥 FIREBASE CLIENT SDK (ADDED FOR REAL-TIME SYNC) -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
+
+    const firebaseConfig = {
+        apiKey: "YOUR_API_KEY",
+        authDomain: "YOUR_PROJECT.firebaseapp.com",
+        databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
+        projectId: "YOUR_PROJECT_ID",
+        appId: "YOUR_APP_ID"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    const EARLY_TOTAL = 5000;
+
+    const earlyRef = ref(db, "stats/waitingCount");
+
+    onValue(earlyRef, (snap) => {
+        const used = snap.val() || 0;
+        const remaining = Math.max(EARLY_TOTAL - used, 0);
+
+        const usedEl = document.getElementById("earlyAccessCount");
+        const remainingEl = document.getElementById("earlyRemaining");
+
+        if (usedEl) usedEl.innerText = used;
+        if (remainingEl) remainingEl.innerText = remaining;
+    });
+</script>
+
+<!-- YOUR EXISTING SCRIPT (UNCHANGED) -->
 <script src="script.js"></script>
 
 </body>
