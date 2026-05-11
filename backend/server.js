@@ -258,10 +258,16 @@ app.post("/register", async (req, res) => {
         // 🔥 INCREMENT WAITLIST
         const statsRef = db.ref("stats/waitingCount");
 
-        const current =
-            (await statsRef.get()).val() || 0;
+       const maxSlots = 5000;
 
-        await statsRef.set(current + 1);
+const currentSnap = await statsRef.get();
+const current = currentSnap.val() || 0;
+
+if (current < maxSlots) {
+    await statsRef.set(current + 1);
+} else {
+    console.log("⚠️ Early access full — no increment");
+}
 
         res.json({
             message: "Registered"
@@ -672,6 +678,31 @@ setInterval(async () => {
     }
 
 }, 10000);
+
+// ======================
+ // 🔥 EARLY ACCESS LIVE SPOTS (FIREBASE SYNC)
+ // ======================
+app.get("/early-access-spots", async (req, res) => {
+    try {
+        const snap = await db.ref("stats/waitingCount").get();
+
+        const used = snap.val() || 0;
+        const max = 5000;
+
+        res.json({
+            used,
+            remaining: Math.max(max - used, 0),
+            max
+        });
+
+    } catch (err) {
+        console.log("SPOTS FETCH ERROR:", err);
+
+        res.status(500).json({
+            message: "Failed to fetch early access spots"
+        });
+    }
+});
 
 // ======================
 // START SERVER
