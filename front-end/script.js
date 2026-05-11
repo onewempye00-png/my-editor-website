@@ -201,3 +201,24 @@ setInterval(loadEarlyAccessCounter, 5000);
 loadEarlyAccessCounter();
 
 init();
+
+async function loadEarlyAccess() {
+    try {
+        const data = await safeFetch(`${API_URL}/early-access-stats`);
+
+        const el = document.getElementById("earlyAccessCount");
+
+        if (!el) return;
+
+        el.innerText = `${data.remaining.toLocaleString()} / ${data.total.toLocaleString()} spots left`;
+
+    } catch (err) {
+        console.log("Early access load failed", err);
+    }
+}
+
+// initial load
+loadEarlyAccess();
+
+// auto refresh every 5 seconds (live sync)
+setInterval(loadEarlyAccess, 5000);
