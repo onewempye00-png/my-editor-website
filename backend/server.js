@@ -13,6 +13,9 @@ import { OAuth2Client } from "google-auth-library";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
 
+// ======================
+// PATH FIX (ESM)
+// ======================
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -20,7 +23,6 @@ const __dirname = dirname(__filename);
 // APP INIT
 // ======================
 const app = express();
-
 app.set("trust proxy", 1);
 
 const PORT = process.env.PORT || 5000;
@@ -29,9 +31,7 @@ const SECRET = process.env.JWT_SECRET || "dev_secret";
 // ======================
 // GOOGLE AUTH
 // ======================
-const googleClient = new OAuth2Client(
-    process.env.GOOGLE_CLIENT_ID
-);
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 // ======================
 // FIREBASE INIT
@@ -87,53 +87,20 @@ app.use(express.urlencoded({
 
 app.use(apiLimiter);
 
-app.get("/", (req, res) => {
-    res.sendFile(
-        path.join(__dirname, "../front-end", "index.html")
-    );
-});
+app.use(express.static(
+    path.join(__dirname, "../front-end")
+));
 
 // ======================
 // JSON ERROR HANDLER
 // ======================
 app.use((err, req, res, next) => {
-
     if (err instanceof SyntaxError) {
         return res.status(400).json({
             message: "Invalid JSON sent to server"
         });
     }
-
     next();
-});
-
-
-console.log(process.env.FIREBASE_PRIVATE_KEY?.slice(0, 50));
-
-// ======================
-// TEST ROUTE
-// ======================
-app.post("/test-json", (req, res) => {
-
-    res.json({
-        received: req.body
-    });
-});
-
-app.get("/test-firebase", async (req, res) => {
-    try {
-        const snap = await db.ref("users").get();
-        res.json({
-            ok: true,
-            exists: snap.exists()
-        });
-    } catch (err) {
-        console.log("FIREBASE TEST ERROR:", err);
-        res.status(500).json({
-            ok: false,
-            error: err.message
-        });
-    }
 });
 
 // ======================
@@ -157,21 +124,16 @@ const safeEmail = (email) =>
         .replace(/\$/g, "_");
 
 const createToken = (email) =>
-    jwt.sign(
-        { email },
-        SECRET,
-        { expiresIn: "7d" }
-    );
-const EARLY_ACCESS_TOTAL = 5000
+    jwt.sign({ email }, SECRET, { expiresIn: "7d" });
+
+const EARLY_ACCESS_TOTAL = 5000;
+
 // ======================
 // ADMIN CONFIG
 // ======================
 const ADMIN_EMAIL_1 = "myeditor.dev@gmail.com";
-
 const ADMIN_EMAIL_2 = "onewempye00@gmail.com";
-
-const ADMIN_PASSWORD =
-    process.env.ADMIN_PASSWORD || "RizzDS12";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "RizzDS12";
 
 // ======================
 // VERIFY ADMIN
@@ -201,11 +163,9 @@ const verifyAdmin = (req, res, next) => {
         }
 
         req.admin = decoded;
-
         next();
 
     } catch (err) {
-
         return res.status(403).json({
             message: "Unauthorized"
         });
@@ -213,56 +173,45 @@ const verifyAdmin = (req, res, next) => {
 };
 
 // ======================
-// ROOT
+// ROOT ROUTES
 // ======================
 app.get("/api", (req, res) => {
-
-    res.json({
-        status: "online"
-    });
+    res.json({ status: "online" });
 });
 
 app.get("/", (req, res) => {
+    res.sendFile(path.join(__dirname, "../front-end", "index.html"));
+});
 
-    res.sendFile(
-        path.join(__dirname, "../front-end", "index.html")
-    );
+// duplicate kept (as requested)
+app.get("/", (req, res) => {
+    res.sendFile(path.join(__dirname, "../front-end", "index.html"));
 });
 
 // ======================
-// EARLY ACCESS LIVE STATS
+// TEST ROUTES
 // ======================
-app.get("/early-access-stats", async (req, res) => {
+app.post("/test-json", (req, res) => {
+    res.json({ received: req.body });
+});
+
+app.get("/test-firebase", async (req, res) => {
     try {
-
-        const ref = db.ref("stats/earlyAccessRemaining");
-        const snap = await ref.get();
-
-        let remaining = snap.val();
-
-        // if not set yet, initialize
-        if (remaining === null || remaining === undefined) {
-            remaining = EARLY_ACCESS_TOTAL;
-
-            await ref.set(remaining);
-        }
-
+        const snap = await db.ref("users").get();
         res.json({
-            total: EARLY_ACCESS_TOTAL,
-            remaining: remaining
+            ok: true,
+            exists: snap.exists()
         });
-
     } catch (err) {
-        console.log("EARLY ACCESS ERROR:", err);
-
         res.status(500).json({
-            message: "Failed to load early access stats"
+            ok: false,
+            error: err.message
         });
     }
 });
 
 // ======================
-// REGISTER USER
+// AUTH ROUTES
 // ======================
 app.post("/register", async (req, res) => {
 
@@ -276,16 +225,11 @@ app.post("/register", async (req, res) => {
             });
         }
 
-        const ref = db.ref(
-            "users/" + safeEmail(email)
-        );
-
+        const ref = db.ref("users/" + safeEmail(email));
         const snap = await ref.get();
 
         if (snap.exists()) {
-            return res.json({
-                message: "Already registered"
-            });
+            return res.json({ message: "Already registered" });
         }
 
         await ref.set({
@@ -296,140 +240,67 @@ app.post("/register", async (req, res) => {
             createdAt: Date.now()
         });
 
-        // 🔥 INCREMENT WAITLIST
         const statsRef = db.ref("stats/waitingCount");
+        const current = (await statsRef.get()).val() || 0;
+        await statsRef.set(current + 1);
 
-       const maxSlots = 5000;
-
-const currentSnap = await statsRef.get();
-const current = currentSnap.val() || 0;
-
-if (current < maxSlots) {
-    await statsRef.set(current + 1);
-} else {
-    console.log("⚠️ Early access full — no increment");
-}
-
-        res.json({
-            message: "Registered"
-        });
+        res.json({ message: "Registered" });
 
     } catch (err) {
-
-        console.log("REGISTER ERROR:", err);
-
-        res.status(500).json({
-            message: "Register failed"
-        });
+        res.status(500).json({ message: "Register failed" });
     }
 });
 
-await db.ref("stats/earlyAccess").transaction((data) => {
-    if (!data) {
-        return {
-            max: 5000,
-            used: 1,
-            remaining: 4999
-        };
-    }
-
-    if (data.used >= data.max) return data;
-
-    return {
-        ...data,
-        used: data.used + 1,
-        remaining: data.max - (data.used + 1)
-    };
-});
-
-}
-
-// ======================
-// SEND OTP
-// ======================
 app.post("/send-code", otpLimiter, async (req, res) => {
 
     try {
 
-        console.log("SEND CODE HIT");
-
         const { email } = req.body;
 
         if (!email) {
-            return res.status(400).json({
-                message: "Email required"
-            });
+            return res.status(400).json({ message: "Email required" });
         }
 
-        const code =
-            Math.floor(
-                100000 + Math.random() * 900000
-            ).toString();
+        const code = Math.floor(
+            100000 + Math.random() * 900000
+        ).toString();
 
-        await db.ref(
-            "otps/" + safeEmail(email)
-        ).set({
+        await db.ref("otps/" + safeEmail(email)).set({
             code,
             expires: Date.now() + 10 * 60 * 1000
         });
 
-        console.log("OTP SAVED");
-
-        // 🔥 TEMPORARY EMAIL TEST
-        console.log("OTP CODE:", code);
-
-        return res.json({
-            message: "OTP generated"
-        });
+        res.json({ message: "OTP generated" });
 
     } catch (err) {
-
-        console.log("SEND CODE ERROR:", err);
-
-        return res.status(500).json({
-            message: "Send code failed"
-        });
+        res.status(500).json({ message: "Send code failed" });
     }
 });
 
-// ======================
-// VERIFY OTP
-// ======================
 app.post("/verify-code", async (req, res) => {
 
     try {
 
         const { email, code } = req.body;
 
-        const ref = db.ref(
-            "otps/" + safeEmail(email)
-        );
-
+        const ref = db.ref("otps/" + safeEmail(email));
         const snap = await ref.get();
 
         if (!snap.exists()) {
-            return res.status(400).json({
-                message: "No OTP"
-            });
+            return res.status(400).json({ message: "No OTP" });
         }
 
         const data = snap.val();
 
         if (Date.now() > data.expires) {
-            return res.status(400).json({
-                message: "Expired"
-            });
+            return res.status(400).json({ message: "Expired" });
         }
 
         if (data.code !== code) {
-            return res.status(400).json({
-                message: "Wrong code"
-            });
+            return res.status(400).json({ message: "Wrong code" });
         }
 
-        await db.ref(
-            "users/" + safeEmail(email)
-        ).update({
+        await db.ref("users/" + safeEmail(email)).update({
             verified: true
         });
 
@@ -441,42 +312,27 @@ app.post("/verify-code", async (req, res) => {
         });
 
     } catch (err) {
-
-        console.log("VERIFY ERROR:", err);
-
-        res.status(500).json({
-            message: "Verify error"
-        });
+        res.status(500).json({ message: "Verify error" });
     }
 });
 
-// ======================
-// GOOGLE LOGIN
-// ======================
 app.post("/google-login", async (req, res) => {
 
     try {
 
         const { token } = req.body;
 
-        const ticket =
-            await googleClient.verifyIdToken({
-                idToken: token,
-                audience:
-                    process.env.GOOGLE_CLIENT_ID
-            });
+        const ticket = await googleClient.verifyIdToken({
+            idToken: token,
+            audience: process.env.GOOGLE_CLIENT_ID
+        });
 
-        const email =
-            ticket.getPayload().email;
+        const email = ticket.getPayload().email;
 
-        const ref = db.ref(
-            "users/" + safeEmail(email)
-        );
-
+        const ref = db.ref("users/" + safeEmail(email));
         const snap = await ref.get();
 
         if (!snap.exists()) {
-
             await ref.set({
                 email,
                 verified: true,
@@ -492,143 +348,108 @@ app.post("/google-login", async (req, res) => {
         });
 
     } catch (err) {
-
-        console.log("GOOGLE LOGIN ERROR:", err);
-
-        res.status(401).json({
-            message: "Google login failed"
-        });
+        res.status(401).json({ message: "Google login failed" });
     }
 });
 
 // ======================
-// ADMIN LOGIN
+// EARLY ACCESS (STATIC TOTAL)
+// ======================
+app.get("/early-access-stats", async (req, res) => {
+    const snap = await db.ref("stats/waitingCount").get();
+    const used = snap.val() || 0;
+
+    res.json({
+        total: EARLY_ACCESS_TOTAL,
+        remaining: Math.max(EARLY_ACCESS_TOTAL - used, 0)
+    });
+});
+
+app.get("/early-access-spots", async (req, res) => {
+
+    const snap = await db.ref("stats/waitingCount").get();
+    const used = snap.val() || 0;
+
+    res.json({
+        used,
+        remaining: Math.max(5000 - used, 0),
+        max: 5000
+    });
+});
+
+// ======================
+// ADMIN ROUTES
 // ======================
 app.post("/admin/login", (req, res) => {
 
     const { email, password } = req.body;
 
     if (
-        (
-            email === ADMIN_EMAIL_1 ||
-            email === ADMIN_EMAIL_2
-        ) &&
+        (email === ADMIN_EMAIL_1 || email === ADMIN_EMAIL_2) &&
         password === process.env.ADMIN_PASSWORD
     ) {
-
-        const token = jwt.sign(
-            { admin: true },
-            SECRET,
-            { expiresIn: "1d" }
-        );
-
-        return res.json({
-            token
+        const token = jwt.sign({ admin: true }, SECRET, {
+            expiresIn: "1d"
         });
+
+        return res.json({ token });
     }
 
-    res.status(401).json({
-        message: "Invalid admin"
+    res.status(401).json({ message: "Invalid admin" });
+});
+
+app.get("/admin/users", verifyAdmin, async (req, res) => {
+    const snap = await db.ref("users").get();
+    res.json(snap.val() || {});
+});
+
+app.delete("/admin/user/:email", verifyAdmin, async (req, res) => {
+
+    const email = req.params.email;
+
+    await db.ref("users/" + safeEmail(email)).remove();
+    await db.ref("otps/" + safeEmail(email)).remove();
+
+    res.json({ message: "User deleted" });
+});
+
+app.post("/admin/ban", verifyAdmin, async (req, res) => {
+
+    const { email } = req.body;
+
+    await db.ref("users/" + safeEmail(email)).update({
+        banned: true
+    });
+
+    res.json({ message: "User banned" });
+});
+
+app.get("/admin/stats", verifyAdmin, async (req, res) => {
+
+    const snap = await db.ref("users").get();
+    const users = snap.val() || {};
+
+    let verified = 0;
+    let banned = 0;
+
+    Object.values(users).forEach(u => {
+        if (u.verified) verified++;
+        if (u.banned) banned++;
+    });
+
+    res.json({
+        totalUsers: Object.keys(users).length,
+        verified,
+        banned
     });
 });
 
 // ======================
-// ADMIN USERS
-// ======================
-app.get(
-    "/admin/users",
-    verifyAdmin,
-    async (req, res) => {
-
-        const snap = await db.ref("users").get();
-
-        res.json(snap.val() || {});
-    }
-);
-
-// ======================
-// DELETE USER
-// ======================
-app.delete(
-    "/admin/user/:email",
-    verifyAdmin,
-    async (req, res) => {
-
-        const email = req.params.email;
-
-        await db.ref(
-            "users/" + safeEmail(email)
-        ).remove();
-
-        await db.ref(
-            "otps/" + safeEmail(email)
-        ).remove();
-
-        res.json({
-            message: "User deleted"
-        });
-    }
-);
-
-// ======================
-// BAN USER
-// ======================
-app.post(
-    "/admin/ban",
-    verifyAdmin,
-    async (req, res) => {
-
-        const { email } = req.body;
-
-        await db.ref(
-            "users/" + safeEmail(email)
-        ).update({
-            banned: true
-        });
-
-        res.json({
-            message: "User banned"
-        });
-    }
-);
-
-// ======================
-// STATS
-// ======================
-app.get(
-    "/admin/stats",
-    verifyAdmin,
-    async (req, res) => {
-
-        const snap = await db.ref("users").get();
-
-        const users = snap.val() || {};
-
-        let verified = 0;
-        let banned = 0;
-
-        Object.values(users).forEach(u => {
-
-            if (u.verified) verified++;
-
-            if (u.banned) banned++;
-        });
-
-        res.json({
-            totalUsers: Object.keys(users).length,
-            verified,
-            banned
-        });
-    }
-);
-
-// ======================
-// EMAIL EXPLOSION
+// EMAIL BLAST
 // ======================
 const sendLaunchEmails = async () => {
 
     const snap = await db.ref("users").get();
-
     const users = snap.val() || {};
 
     const emails = Object.values(users)
@@ -636,142 +457,41 @@ const sendLaunchEmails = async () => {
         .filter(Boolean);
 
     for (const email of emails) {
-
         await transporter.sendMail({
             from: process.env.GMAIL_USER,
             to: email,
             subject: "🚀 We are LIVE!",
-            html: `
-                <h1>The app is now LIVE!</h1>
-                <p>Click here to access the platform.</p>
-            `
+            html: `<h1>The app is now LIVE!</h1>`
         });
     }
 };
-
-// ======================
-// 🔥 PUBLIC COUNTDOWN SYNC (ADDED)
-// ======================
-// This lets frontend get real launch time from Firebase
-app.get("/launch-time", async (req, res) => {
-    try {
-        const snap = await db.ref("stats/launchTime").get();
-
-        const launchTime = snap.val();
-
-        res.json({
-            launchTime: launchTime || null
-        });
-
-    } catch (err) {
-        console.log("LAUNCH TIME FETCH ERROR:", err);
-
-        res.status(500).json({
-            message: "Failed to fetch launch time"
-        });
-    }
-});
-
-// ======================
-// 🔥 ENSURE DEFAULT LAUNCH TIME EXISTS (ADDED SAFETY)
-// ======================
-(async () => {
-    try {
-        const ref = db.ref("stats/launchTime");
-        const snap = await ref.get();
-
-        if (!snap.exists()) {
-            // default: 6 months from now
-            const defaultTime = Date.now() + (6 * 30 * 24 * 60 * 60 * 1000);
-
-            await ref.set(defaultTime);
-
-            console.log("🔥 Default launchTime set in Firebase");
-        }
-
-    } catch (err) {
-        console.log("launchTime init error:", err);
-    }
-})();
 
 // ======================
 // LAUNCH CHECKER
 // ======================
 setInterval(async () => {
 
-    try {
+    const snap = await db.ref("stats").get();
+    const stats = snap.val();
 
-        const snap =
-            await db.ref("stats").get();
+    if (!stats) return;
 
-        const stats = snap.val();
+    const now = Date.now();
 
-        if (!stats) return;
+    if (!stats.launched && now >= stats.launchTime) {
 
-        const now = Date.now();
+        await db.ref("stats").update({
+            launched: true
+        });
 
-        if (
-            !stats.launched &&
-            now >= stats.launchTime
-        ) {
-
-            console.log(
-                "🚀 LAUNCH TRIGGERED"
-            );
-
-            await db.ref("stats").update({
-                launched: true
-            });
-
-            await sendLaunchEmails();
-
-            console.log(
-                "📧 Email blast complete"
-            );
-        }
-
-    } catch (err) {
-
-        console.log(
-            "LAUNCH CHECK ERROR:",
-            err
-        );
+        await sendLaunchEmails();
     }
 
 }, 10000);
 
 // ======================
- // 🔥 EARLY ACCESS LIVE SPOTS (FIREBASE SYNC)
- // ======================
-app.get("/early-access-spots", async (req, res) => {
-    try {
-        const snap = await db.ref("stats/waitingCount").get();
-
-        const used = snap.val() || 0;
-        const max = 5000;
-
-        res.json({
-            used,
-            remaining: Math.max(max - used, 0),
-            max
-        });
-
-    } catch (err) {
-        console.log("SPOTS FETCH ERROR:", err);
-
-        res.status(500).json({
-            message: "Failed to fetch early access spots"
-        });
-    }
-});
-
-// ======================
 // START SERVER
 // ======================
 app.listen(PORT, () => {
-
-    console.log(
-        "🔥 Server running on",
-        PORT
-    );
+    console.log("🔥 Server running on", PORT);
 });
