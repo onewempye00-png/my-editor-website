@@ -9,20 +9,37 @@ const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 const { OAuth2Client } = require("google-auth-library");
 
+// ======================
+// APP INIT
+// ======================
 const app = express();
+
 app.set("trust proxy", 1);
+
 const PORT = process.env.PORT || 5000;
 const SECRET = process.env.JWT_SECRET || "dev_secret";
 
 // ======================
 // GOOGLE AUTH
 // ======================
-const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const googleClient = new OAuth2Client(
+    process.env.GOOGLE_CLIENT_ID
+);
 
 // ======================
 // FIREBASE INIT
 // ======================
 if (!admin.apps.length) {
+
+    if (
+        !process.env.FIREBASE_PROJECT_ID ||
+        !process.env.FIREBASE_CLIENT_EMAIL ||
+        !process.env.FIREBASE_PRIVATE_KEY
+    ) {
+        console.error("❌ Missing Firebase environment variables");
+        process.exit(1);
+    }
+
     admin.initializeApp({
         credential: admin.credential.cert({
             projectId: process.env.FIREBASE_PROJECT_ID,
@@ -52,24 +69,44 @@ const otpLimiter = rateLimit({
 // MIDDLEWARE
 // ======================
 app.use(cors());
-app.use(express.json());
-app.use(express.static(path.join(__dirname, "../front-end")));
+
+app.use(express.json({
+    limit: "1mb"
+}));
+
+app.use(express.urlencoded({
+    extended: true
+}));
+
 app.use(apiLimiter);
-app.use(express.json({ limit: "1mb" }));
+
+app.use(express.static(
+    path.join(__dirname, "../front-end")
+));
+
+// ======================
+// JSON ERROR HANDLER
+// ======================
 app.use((err, req, res, next) => {
+
     if (err instanceof SyntaxError) {
         return res.status(400).json({
             message: "Invalid JSON sent to server"
         });
     }
+
     next();
 });
+
+// ======================
+// TEST ROUTE
+// ======================
 app.post("/test-json", (req, res) => {
+
     res.json({
         received: req.body
     });
 });
-
 
 // ======================
 // EMAIL SETUP
@@ -86,50 +123,139 @@ const transporter = nodemailer.createTransport({
 // HELPERS
 // ======================
 const safeEmail = (email) =>
-    email.replace(/\./g, "_").replace(/#/g, "_").replace(/\$/g, "_");
+    email
+        .replace(/\./g, "_")
+        .replace(/#/g, "_")
+        .replace(/\$/g, "_");
 
 const createToken = (email) =>
-    jwt.sign({ email }, SECRET, { expiresIn: "7d" });
+    jwt.sign(
+        { email },
+        SECRET,
+        { expiresIn: "7d" }
+    );
+
+// ======================
+// ADMIN CONFIG
+// ======================
+const ADMIN_EMAIL_1 = "myeditor.dev@gmail.com";
+
+const ADMIN_EMAIL_2 = "onewempye00@gmail.com";
+
+const ADMIN_PASSWORD =
+    process.env.ADMIN_PASSWORD || "RizzDS12";
+
+// ======================
+// VERIFY ADMIN
+// ======================
+const verifyAdmin = (req, res, next) => {
+
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader) {
+        return res.status(401).json({
+            message: "No token"
+        });
+    }
+
+    try {
+
+        const token = authHeader.startsWith("Bearer ")
+            ? authHeader.split(" ")[1]
+            : authHeader;
+
+        const decoded = jwt.verify(token, SECRET);
+
+        if (!decoded.admin) {
+            return res.status(403).json({
+                message: "Unauthorized"
+            });
+        }
+
+        req.admin = decoded;
+
+        next();
+
+    } catch (err) {
+
+        return res.status(403).json({
+            message: "Unauthorized"
+        });
+    }
+};
 
 // ======================
 // ROOT
 // ======================
 app.get("/api", (req, res) => {
-    res.json({ status: "online" });
+
+    res.json({
+        status: "online"
+    });
 });
+
 app.get("/", (req, res) => {
-    res.sendFile(path.join(__dirname, "../front-end", "index.html"));
+
+    res.sendFile(
+        path.join(__dirname, "../front-end", "index.html")
+    );
 });
+
 // ======================
 // REGISTER USER
 // ======================
 app.post("/register", async (req, res) => {
-    const { email } = req.body;
-    if (!email) return res.status(400).json({ message: "Email required" });
 
-    const ref = db.ref("users/" + safeEmail(email));
-    const snap = await ref.get();
+    try {
 
-    if (snap.exists()) {
-        return res.json({ message: "Already registered" });
+        const { email } = req.body;
+
+        if (!email) {
+            return res.status(400).json({
+                message: "Email required"
+            });
+        }
+
+        const ref = db.ref(
+            "users/" + safeEmail(email)
+        );
+
+        const snap = await ref.get();
+
+        if (snap.exists()) {
+            return res.json({
+                message: "Already registered"
+            });
+        }
+
+        await ref.set({
+            email,
+            verified: false,
+            banned: false,
+            paid: false,
+            createdAt: Date.now()
+        });
+
+        // 🔥 INCREMENT WAITLIST
+        const statsRef = db.ref("stats/waitingCount");
+
+        const current =
+            (await statsRef.get()).val() || 0;
+
+        await statsRef.set(current + 1);
+
+        res.json({
+            message: "Registered"
+        });
+
+    } catch (err) {
+
+        console.log("REGISTER ERROR:", err);
+
+        res.status(500).json({
+            message: "Register failed"
+        });
     }
-
-    await ref.set({
-    email,
-    verified: false,
-    banned: false,
-    paid: false,
-    createdAt: Date.now()
-});
-
-// 🔥 INCREMENT WAITLIST
-const statsRef = db.ref("stats/waitingCount");
-
-const current = (await statsRef.get()).val() || 0;
-
-await statsRef.set(current + 1);
-
-    res.json({ message: "Registered" });
 });
 
 // ======================
@@ -150,9 +276,13 @@ app.post("/send-code", otpLimiter, async (req, res) => {
         }
 
         const code =
-            Math.floor(100000 + Math.random() * 900000).toString();
+            Math.floor(
+                100000 + Math.random() * 900000
+            ).toString();
 
-        await db.ref("otps/" + safeEmail(email)).set({
+        await db.ref(
+            "otps/" + safeEmail(email)
+        ).set({
             code,
             expires: Date.now() + 10 * 60 * 1000
         });
@@ -175,28 +305,45 @@ app.post("/send-code", otpLimiter, async (req, res) => {
         });
     }
 });
+
 // ======================
 // VERIFY OTP
 // ======================
 app.post("/verify-code", async (req, res) => {
+
     try {
+
         const { email, code } = req.body;
 
-        const ref = db.ref("otps/" + safeEmail(email));
+        const ref = db.ref(
+            "otps/" + safeEmail(email)
+        );
+
         const snap = await ref.get();
 
-        if (!snap.exists())
-            return res.status(400).json({ message: "No OTP" });
+        if (!snap.exists()) {
+            return res.status(400).json({
+                message: "No OTP"
+            });
+        }
 
         const data = snap.val();
 
-        if (Date.now() > data.expires)
-            return res.status(400).json({ message: "Expired" });
+        if (Date.now() > data.expires) {
+            return res.status(400).json({
+                message: "Expired"
+            });
+        }
 
-        if (data.code !== code)
-            return res.status(400).json({ message: "Wrong code" });
+        if (data.code !== code) {
+            return res.status(400).json({
+                message: "Wrong code"
+            });
+        }
 
-        await db.ref("users/" + safeEmail(email)).update({
+        await db.ref(
+            "users/" + safeEmail(email)
+        ).update({
             verified: true
         });
 
@@ -208,7 +355,12 @@ app.post("/verify-code", async (req, res) => {
         });
 
     } catch (err) {
-        res.status(500).json({ message: "Verify error" });
+
+        console.log("VERIFY ERROR:", err);
+
+        res.status(500).json({
+            message: "Verify error"
+        });
     }
 });
 
@@ -216,20 +368,29 @@ app.post("/verify-code", async (req, res) => {
 // GOOGLE LOGIN
 // ======================
 app.post("/google-login", async (req, res) => {
+
     try {
+
         const { token } = req.body;
 
-        const ticket = await googleClient.verifyIdToken({
-            idToken: token,
-            audience: process.env.GOOGLE_CLIENT_ID
-        });
+        const ticket =
+            await googleClient.verifyIdToken({
+                idToken: token,
+                audience:
+                    process.env.GOOGLE_CLIENT_ID
+            });
 
-        const email = ticket.getPayload().email;
+        const email =
+            ticket.getPayload().email;
 
-        const ref = db.ref("users/" + safeEmail(email));
+        const ref = db.ref(
+            "users/" + safeEmail(email)
+        );
+
         const snap = await ref.get();
 
         if (!snap.exists()) {
+
             await ref.set({
                 email,
                 verified: true,
@@ -245,15 +406,143 @@ app.post("/google-login", async (req, res) => {
         });
 
     } catch (err) {
-        res.status(401).json({ message: "Google login failed" });
+
+        console.log("GOOGLE LOGIN ERROR:", err);
+
+        res.status(401).json({
+            message: "Google login failed"
+        });
     }
 });
+
+// ======================
+// ADMIN LOGIN
+// ======================
+app.post("/admin/login", (req, res) => {
+
+    const { email, password } = req.body;
+
+    if (
+        (
+            email === ADMIN_EMAIL_1 ||
+            email === ADMIN_EMAIL_2
+        ) &&
+        password === process.env.ADMIN_PASSWORD
+    ) {
+
+        const token = jwt.sign(
+            { admin: true },
+            SECRET,
+            { expiresIn: "1d" }
+        );
+
+        return res.json({
+            token
+        });
+    }
+
+    res.status(401).json({
+        message: "Invalid admin"
+    });
+});
+
+// ======================
+// ADMIN USERS
+// ======================
+app.get(
+    "/admin/users",
+    verifyAdmin,
+    async (req, res) => {
+
+        const snap = await db.ref("users").get();
+
+        res.json(snap.val() || {});
+    }
+);
+
+// ======================
+// DELETE USER
+// ======================
+app.delete(
+    "/admin/user/:email",
+    verifyAdmin,
+    async (req, res) => {
+
+        const email = req.params.email;
+
+        await db.ref(
+            "users/" + safeEmail(email)
+        ).remove();
+
+        await db.ref(
+            "otps/" + safeEmail(email)
+        ).remove();
+
+        res.json({
+            message: "User deleted"
+        });
+    }
+);
+
+// ======================
+// BAN USER
+// ======================
+app.post(
+    "/admin/ban",
+    verifyAdmin,
+    async (req, res) => {
+
+        const { email } = req.body;
+
+        await db.ref(
+            "users/" + safeEmail(email)
+        ).update({
+            banned: true
+        });
+
+        res.json({
+            message: "User banned"
+        });
+    }
+);
+
+// ======================
+// STATS
+// ======================
+app.get(
+    "/admin/stats",
+    verifyAdmin,
+    async (req, res) => {
+
+        const snap = await db.ref("users").get();
+
+        const users = snap.val() || {};
+
+        let verified = 0;
+        let banned = 0;
+
+        Object.values(users).forEach(u => {
+
+            if (u.verified) verified++;
+
+            if (u.banned) banned++;
+        });
+
+        res.json({
+            totalUsers: Object.keys(users).length,
+            verified,
+            banned
+        });
+    }
+);
 
 // ======================
 // EMAIL EXPLOSION
 // ======================
 const sendLaunchEmails = async () => {
+
     const snap = await db.ref("users").get();
+
     const users = snap.val() || {};
 
     const emails = Object.values(users)
@@ -261,6 +550,7 @@ const sendLaunchEmails = async () => {
         .filter(Boolean);
 
     for (const email of emails) {
+
         await transporter.sendMail({
             from: process.env.GMAIL_USER,
             to: email,
@@ -277,151 +567,55 @@ const sendLaunchEmails = async () => {
 // LAUNCH CHECKER
 // ======================
 setInterval(async () => {
-    const snap = await db.ref("stats").get();
-    const stats = snap.val();
-
-    if (!stats) return;
-
-    const now = Date.now();
-
-    if (!stats.launched && now >= stats.launchTime) {
-
-        console.log("🚀 LAUNCH TRIGGERED");
-
-        // mark as launched so it only runs once
-        await db.ref("stats").update({
-            launched: true
-        });
-
-        // send emails
-        await sendLaunchEmails();
-
-        console.log("📧 Email blast complete");
-    }
-
-}, 10000); // checks every 10 seconds
-
-// ======================
-// ADMIN CONFIG
-// ======================
-const ADMIN_EMAIL_1 = "myeditor.dev@gmail.com";
-const ADMIN_EMAIL_2 = "onewempye00@gmail.com";
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "RizzDS12";
-
-// ======================
-// ADMIN LOGIN
-// ======================
-app.post("/admin/login", (req, res) => {
-
-    const { email, password } = req.body;
-
-    if (
-        (email === ADMIN_EMAIL_1 ||
-         email === ADMIN_EMAIL_2) &&
-
-        password === process.env.ADMIN_PASSWORD
-    ) {
-
-        const token = jwt.sign(
-            { admin: true },
-            SECRET,
-            { expiresIn: "1d" }
-        );
-
-        return res.json({ token });
-    }
-
-    res.status(401).json({
-        message: "Invalid admin"
-    });
-});
-
-// ======================
-// VERIFY ADMIN
-// ======================
-const verifyAdmin = (req, res, next) => {
-    const authHeader = req.headers.authorization;
-
-    if (!authHeader) {
-        return res.status(401).json({ message: "No token" });
-    }
 
     try {
-        // Remove "Bearer " if it exists
-        const token = authHeader.startsWith("Bearer ")
-            ? authHeader.split(" ")[1]
-            : authHeader;
 
-        const decoded = jwt.verify(token, SECRET);
+        const snap =
+            await db.ref("stats").get();
 
-        if (!decoded.admin) {
-            return res.status(403).json({ message: "Unauthorized" });
+        const stats = snap.val();
+
+        if (!stats) return;
+
+        const now = Date.now();
+
+        if (
+            !stats.launched &&
+            now >= stats.launchTime
+        ) {
+
+            console.log(
+                "🚀 LAUNCH TRIGGERED"
+            );
+
+            await db.ref("stats").update({
+                launched: true
+            });
+
+            await sendLaunchEmails();
+
+            console.log(
+                "📧 Email blast complete"
+            );
         }
 
-        req.admin = decoded; // optional but useful
-        next();
-
     } catch (err) {
-        return res.status(403).json({ message: "Unauthorized" });
+
+        console.log(
+            "LAUNCH CHECK ERROR:",
+            err
+        );
     }
-};
+
+}, 10000);
 
 // ======================
-// ADMIN USERS
-// ======================
-app.get("/admin/users", verifyAdmin, async (req, res) => {
-    const snap = await db.ref("users").get();
-    res.json(snap.val() || {});
-});
-
-// ======================
-// DELETE USER
-// ======================
-app.delete("/admin/user/:email", verifyAdmin, async (req, res) => {
-    const email = req.params.email;
-
-    await db.ref("users/" + safeEmail(email)).remove();
-    await db.ref("otps/" + safeEmail(email)).remove();
-
-    res.json({ message: "User deleted" });
-});
-
-// ======================
-// BAN USER
-// ======================
-app.post("/admin/ban", verifyAdmin, async (req, res) => {
-    const { email } = req.body;
-
-    await db.ref("users/" + safeEmail(email)).update({
-        banned: true
-    });
-
-    res.json({ message: "User banned" });
-});
-
-// ======================
-// STATS
-// ======================
-app.get("/admin/stats", verifyAdmin, async (req, res) => {
-    const snap = await db.ref("users").get();
-    const users = snap.val() || {};
-
-    let verified = 0;
-    let banned = 0;
-
-    Object.values(users).forEach(u => {
-        if (u.verified) verified++;
-        if (u.banned) banned++;
-    });
-
-    res.json({
-        totalUsers: Object.keys(users).length,
-        verified,
-        banned
-    });
-});
-
+// START SERVER
 // ======================
 app.listen(PORT, () => {
-    console.log("🔥 Server running on", PORT);
+
+    console.log(
+        "🔥 Server running on",
+        PORT
+    );
 });
