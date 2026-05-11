@@ -2,9 +2,6 @@ require("dotenv").config();
 
 const path = require("path");
 const express = require("express");
-
-app.set("trust proxy", 1);
-
 const rateLimit = require("express-rate-limit");
 const admin = require("firebase-admin");
 const cors = require("cors");
@@ -13,6 +10,7 @@ const nodemailer = require("nodemailer");
 const { OAuth2Client } = require("google-auth-library");
 
 const app = express();
+app.set("trust proxy", 1);
 const PORT = process.env.PORT || 5000;
 const SECRET = process.env.JWT_SECRET || "dev_secret";
 
