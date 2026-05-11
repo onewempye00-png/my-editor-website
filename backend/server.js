@@ -1,13 +1,14 @@
-require("dotenv").config();
+import dotenv from "dotenv";
+dotenv.config();
 
-const path = require("path");
-const express = require("express");
-const rateLimit = require("express-rate-limit");
-const admin = require("firebase-admin");
-const cors = require("cors");
-const jwt = require("jsonwebtoken");
-const nodemailer = require("nodemailer");
-const { OAuth2Client } = require("google-auth-library");
+import path from "path";
+import express from "express";
+import rateLimit from "express-rate-limit";
+import admin from "firebase-admin";
+import cors from "cors";
+import jwt from "jsonwebtoken";
+import nodemailer from "nodemailer";
+import { OAuth2Client } from "google-auth-library";
 
 // ======================
 // APP INIT
