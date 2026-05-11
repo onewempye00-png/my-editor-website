@@ -81,9 +81,11 @@ app.use(express.urlencoded({
 
 app.use(apiLimiter);
 
-app.use(express.static(
-    path.join(__dirname, "../front-end")
-));
+app.get("/", (req, res) => {
+    res.sendFile(
+        path.join(__dirname, "../front-end", "index.html")
+    );
+});
 
 // ======================
 // JSON ERROR HANDLER
