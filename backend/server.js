@@ -111,6 +111,22 @@ app.post("/test-json", (req, res) => {
     });
 });
 
+app.get("/test-firebase", async (req, res) => {
+    try {
+        const snap = await db.ref("users").get();
+        res.json({
+            ok: true,
+            exists: snap.exists()
+        });
+    } catch (err) {
+        console.log("FIREBASE TEST ERROR:", err);
+        res.status(500).json({
+            ok: false,
+            error: err.message
+        });
+    }
+});
+
 // ======================
 // EMAIL SETUP
 // ======================
