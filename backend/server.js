@@ -153,7 +153,7 @@ const createToken = (email) =>
         SECRET,
         { expiresIn: "7d" }
     );
-
+const EARLY_ACCESS_TOTAL = 5000
 // ======================
 // ADMIN CONFIG
 // ======================
@@ -221,6 +221,38 @@ app.get("/", (req, res) => {
 });
 
 // ======================
+// EARLY ACCESS LIVE STATS
+// ======================
+app.get("/early-access-stats", async (req, res) => {
+    try {
+
+        const ref = db.ref("stats/earlyAccessRemaining");
+        const snap = await ref.get();
+
+        let remaining = snap.val();
+
+        // if not set yet, initialize
+        if (remaining === null || remaining === undefined) {
+            remaining = EARLY_ACCESS_TOTAL;
+
+            await ref.set(remaining);
+        }
+
+        res.json({
+            total: EARLY_ACCESS_TOTAL,
+            remaining: remaining
+        });
+
+    } catch (err) {
+        console.log("EARLY ACCESS ERROR:", err);
+
+        res.status(500).json({
+            message: "Failed to load early access stats"
+        });
+    }
+});
+
+// ======================
 // REGISTER USER
 // ======================
 app.post("/register", async (req, res) => {
@@ -282,6 +314,14 @@ if (current < maxSlots) {
         });
     }
 });
+
+const earlyRef = db.ref("stats/earlyAccessRemaining");
+
+const currentEarly = (await earlyRef.get()).val();
+
+if (currentEarly > 0) {
+    await earlyRef.set(currentEarly - 1);
+}
 
 // ======================
 // SEND OTP
