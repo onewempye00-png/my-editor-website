@@ -110,37 +110,34 @@ try {
 };
 
 // ======================
-// COUNTDOWN (UNCHANGED - BASE)
+// COUNTDOWN (REAL FIREBASE SYNC FIXED)
 // ======================
-const launchDate = new Date();
-launchDate.setMonth(launchDate.getMonth() + 6);
+let launchTime = null;
 
-// 🔥 NEW: Firebase synced countdown base time
-let serverLaunchTime = null;
-
-// ======================
-// 🔥 LIVE FIREBASE COUNTDOWN SYNC (ADDED)
-// ======================
-async function syncLaunchTime() {
+// 🔥 REAL Firebase synced countdown
+async function loadLaunchTime() {
     try {
-        const data = await safeFetch(`${API_URL}/early-access`);
-        serverLaunchTime = Date.now() + (data.remaining * 1000); // placeholder sync logic
+        const data = await safeFetch(`${API_URL}/launch-time`);
+        launchTime = data.launchTime;
     } catch (err) {
-        console.log("Countdown sync failed, using fallback");
+        console.log("Launch time sync failed");
     }
 }
 
-syncLaunchTime();
+loadLaunchTime();
+
+// fallback (only if Firebase fails)
+const fallbackLaunch = new Date();
+fallbackLaunch.setMonth(fallbackLaunch.getMonth() + 6);
 
 // ======================
-// UPDATED COUNTDOWN (NOW SYNC READY)
+// LIVE COUNTDOWN
 // ======================
 setInterval(() => {
 const el = document.getElementById("countdown");
 if (!el) return;
 
-// fallback if server sync not ready
-const target = serverLaunchTime || launchDate.getTime();
+const target = launchTime || fallbackLaunch.getTime();
 
 const diff = target - Date.now();
 
@@ -179,46 +176,26 @@ paywall.style.display = "none";
 }
 
 // ======================
-// 🔥 FIREBASE EARLY ACCESS COUNTER (ADDED)
+// 🔥 REAL-TIME EARLY ACCESS COUNTER (FIXED)
 // ======================
-async function loadEarlyAccessCounter() {
-    try {
-        const data = await safeFetch(`${API_URL}/early-access`);
-
-        const el = document.getElementById("earlyCounter");
-
-        if (el) {
-            el.innerText = `${data.used} / 5000`;
-        }
-
-    } catch (err) {
-        console.log("Counter failed");
-    }
-}
-
-// auto-refresh counter every 5 seconds (real-time feel)
-setInterval(loadEarlyAccessCounter, 5000);
-loadEarlyAccessCounter();
-
-init();
-
 async function loadEarlyAccess() {
     try {
-        const data = await safeFetch(`${API_URL}/early-access-stats`);
+        const data = await safeFetch(`${API_URL}/early-access-spots`);
 
-        const el = document.getElementById("earlyAccessCount");
+        const elUsed = document.getElementById("earlyAccessCount");
+        const elRemaining = document.getElementById("earlyRemaining");
 
-        if (!el) return;
-
-        el.innerText = `${data.remaining.toLocaleString()} / ${data.total.toLocaleString()} spots left`;
+        if (elUsed) elUsed.innerText = data.used;
+        if (elRemaining) elRemaining.innerText = data.remaining;
 
     } catch (err) {
-        console.log("Early access load failed", err);
+        console.log("Early access load failed");
     }
 }
 
-// initial load
+// initial + live sync
 loadEarlyAccess();
+setInterval(loadEarlyAccess, 3000);
 
-// auto refresh every 5 seconds (live sync)
-setInterval(loadEarlyAccess, 5000);
+// ======================
+init();
